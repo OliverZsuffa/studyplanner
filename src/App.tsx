@@ -106,8 +106,8 @@ function makeGraph(plan: StudyPlan, available: Set<string>, selectedId: string |
     labelBgPadding: [5, 3] as [number, number],
     labelBgBorderRadius: 5,
     style: dependency.kind === 'required'
-      ? { stroke: '#8b72d6', strokeWidth: 2 }
-      : { stroke: '#a8b3a5', strokeWidth: 1.5, strokeDasharray: '5 5' },
+      ? { stroke: '#8b72d6', strokeWidth: 3 }
+      : { stroke: '#a8b3a5', strokeWidth: 2.5, strokeDasharray: '6 5' },
     markerEnd: { type: 'arrowclosed' as const, color: dependency.kind === 'required' ? '#8b72d6' : '#a8b3a5' },
   }));
   return { nodes, edges };

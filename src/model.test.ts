@@ -5,7 +5,7 @@ const plan: StudyPlan = {
   name: 'Test',
   institution: 'Test data',
   modules: [
-    { id: 'a', title: 'A', code: 'A', semester: 1, ects: 5, status: 'completed', description: '', category: 'Core' },
+    { id: 'a', title: 'A', code: 'A', semester: 1, ects: 5, status: 'completed', result: 'passed', description: '', category: 'Core' },
     { id: 'b', title: 'B', code: 'B', semester: 2, ects: 5, status: 'not-started', description: '', category: 'Core' },
     { id: 'c', title: 'C', code: 'C', semester: 2, ects: 5, status: 'not-started', description: '', category: 'Core' },
   ],
