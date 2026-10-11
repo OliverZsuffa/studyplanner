@@ -19,7 +19,7 @@ import {
   CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List,
   Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award, Columns3, Pencil,
 } from 'lucide-react';
-import { getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getWeightedGradeAverage, isModuleCountedInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleStatus, type StudyModule, type StudyPlan } from './model';
+import { getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getWeightedGradeAverage, isModuleCountedInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester } from './model';
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
 
@@ -225,7 +225,7 @@ function App() {
   };
 
   const moveModule = (id: string, semester: number | null) => {
-    setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? { ...module, semester: semester ?? undefined, plannedSemester: semester } : module) }));
+    setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? withPlannedSemester(module, semester) : module) }));
     setToast(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
   };
 
