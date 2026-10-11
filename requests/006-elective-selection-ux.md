@@ -106,8 +106,22 @@ Treat each elective/requirement group as a choice the student manages in one pla
 - Undo/history for accidental edits.
 These should be considered after the core data model and selection workflows are stable.
 
-## Status
+## Implementation status
 
-- Planning only. No application implementation changes are included in this request yet.
-- Scope expanded to include independent recommendation state, consistent accessible status colour coding, group progress summaries, and source-aware prerequisite planning warnings.
-- Waiting for explicit user approval before implementation, following the repository workflow.
+Implemented on `docs/006-elective-selection-ux`:
+
+- Added requirement selection helpers and group summaries for selected count/ECTS, rule validation, and unsupported/ambiguous states.
+- Added a dedicated Electives & requirements selector with choose/remove actions, exact/max ECTS and module-count constraints, disabled reasons, and target progress.
+- Filtered unselected alternatives from the Kanban, graph, and list while preserving them in plan data. Graph edges are only rendered when both endpoints are visible.
+- Changed overlapping-group semantics: a module counts and appears in the plan only when selected in every group that references it; ECTS totals still count each module once.
+- Kept progress separate from recommendation by adding `recommendation` values `not-reviewed`, `recommended`, and `strongly-recommended`. Legacy plans migrate to the neutral `not-reviewed` value.
+- Added visible recommendation labels in graph, Kanban, list, and detail views, with light/dark colour treatments and text labels so meaning is not colour-only.
+- Added required-predecessor planning warnings when a planned module has an unfinished required predecessor or a known semester-order conflict. Recommended relationships are not treated as formal blockers.
+- Added unit tests for recommendation migration, exact-ECTS selection limits, selected-plan visibility/accounting, overlapping groups, and `one-from-each` review state.
+- Updated `knowledge/README.md`.
+
+### Verification
+
+- Unit tests and production build: pending GitHub Actions verification.
+- Live deployment: not yet verified. The Pages deployment workflow only deploys from `main`; this feature branch requires a passing PR build and merge before it can go live.
+- Do not mark the request complete until the CI build/tests pass and, after merge, the Pages deployment and live URL are checked.
