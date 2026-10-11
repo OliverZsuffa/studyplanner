@@ -125,6 +125,22 @@ Implement in coherent, reviewable stages, all within this request unless reposit
 - Build and all tests pass.
 - Deployment is verified before claiming the live site is updated.
 
-## Status
+## Implementation status
 
-Planning only. No application code has been changed for this request. The scope now includes the previously discussed planning UX and curriculum-import reliability work.
+Implemented on branch `docs/005-elective-import-reliability` (PR #3). The changes include:
+
+- Added the semester Kanban as the default view, with semester and unplanned columns, drag-and-drop, and a keyboard/touch-friendly “Move to” selector. Moves update the personal planned semester while leaving the official recommendation untouched.
+- Kept the dependency graph and list views available. The graph remains draggable, with required and recommended relationships displayed differently.
+- Reworked add/edit into one course form covering title, code, category, description, planned semester, ECTS, progress, result, and grade.
+- Kept dark mode and extended styling to the Kanban and editor.
+- Centralized weighted grade calculation: only selected/countable modules with a passed result, valid grade (1.0–4.0), and positive ECTS count. Progress totals also exclude unselected elective alternatives.
+- Tightened the curriculum extraction prompt to preserve explicit elective requirements with no known options, keep distinct areas separate, and distinguish requirements from alternatives.
+- Added a non-blocking review warning for groups with no linked modules; users can link options manually.
+- Added regression tests for missing elective options, separate groups, weighted grade calculations, elective progress totals, and independence of planned vs official semester.
+- Updated `knowledge/README.md`.
+
+### Verification still required
+
+The changes were committed to the PR branch through GitHub. I could not run the npm test suite or production build in this environment, and the workflow lookup for the latest test commit returned no run. Therefore, build/tests and the deployed Pages site are **not yet verified**. Check the PR's Actions checks and fix any failures before merging or claiming deployment success.
+
+The implementation is ready for CI review, but acceptance criteria requiring a successful test/build and deployment verification remain pending.
