@@ -12,7 +12,7 @@ describe('semester timeline and availability', () => {
   it('maps semesters from either starting season without deriving course dates', () => {
     expect(getTermLabel(getTermForSemester({season:'winter',year:2026},1))).toBe('Winter semester 2026/27');
     expect(getTermForSemester({season:'winter',year:2026},2)).toEqual({season:'summer',year:2027});
-    expect(getTermForSemester({season:'summer',year:2026},2)).toEqual({season:'winter',year:2027});
+    expect(getTermForSemester({season:'summer',year:2026},2)).toEqual({season:'winter',year:2026});
     expect(getTermForSemester(null,1)).toBeNull();
   });
   it('blocks a winter/summer availability mismatch but allows both', () => {
