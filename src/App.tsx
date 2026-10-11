@@ -484,6 +484,7 @@ function App() {
                   <div className="detail-divider" />
                   <div className="detail-footer-note"><Sparkles size={15} /><span>Suggested connections are guidance, not official exam requirements unless explicitly marked required.</span></div>
                   </>}
+                </>
               ) : (
                 <div className="detail-empty"><div className="empty-illustration"><BookOpen size={24} /></div><h3>Start with a course</h3><p>Choose a card to record progress and grades, or add a course that is missing from your plan.</p><button className="button button-primary" onClick={openAddModule}><Plus size={15} /> Add your first course</button></div>
               )}
