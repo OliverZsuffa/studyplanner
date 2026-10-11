@@ -152,6 +152,56 @@ Avoid making every field generic/complex if a simpler typed structure will work.
 5. Integrate safe add/replace confirmation and JSON backup restore.
 6. Run tests/build, inspect the deployed version, and update the knowledge base.
 
+
+
+## Updated direction: user-controlled AI for prerequisite analysis
+
+The first version will not call an AI API from the website and will not ask users to enter API keys. Instead, the site will prepare structured data and let users choose their own AI service.
+
+### Revised workflow
+
+1. **Parse locally:** extract candidate modules, codes, ECTS, semester information, descriptions, and possible requirement groups from selectable-text PDFs or pasted text.
+2. **Manually correct the curriculum:** let users add/edit/remove modules and configure compulsory modules, elective options, and choice-group rules. The curriculum must be in a reasonably clean, user-confirmed state before generating the AI prompt.
+3. **Generate a copyable prompt:** create a prompt containing the confirmed curriculum data and explicit instructions for prerequisite analysis. Ask the AI to distinguish:
+   - formal prerequisites explicitly supported by official source text;
+   - recommended prior knowledge inferred from learning outcomes or module descriptions;
+   - uncertain suggestions requiring verification.
+   The prompt must tell the AI not to invent official requirements, to explain the rationale for each suggested relationship, and to cite source excerpts or URLs when supplied. It should return only a documented JSON structure matching the Studyplanner import schema.
+4. **Import AI output as a draft:** users paste the AI response into the site. Parse and validate it, show a preview of new relationships and any errors/unknown module references, then let users approve or reject each relationship before it affects the plan.
+5. **Keep source and provenance:** imported official rules, user-confirmed facts, and AI suggestions must remain distinct. AI-inferred prior knowledge must never silently become a formal prerequisite or hard blocker.
+
+### AI analysis scope
+
+The prompt may ask the chosen AI to use the provided module descriptions first and, if browsing is available, consult official module handbooks, examination regulations, and university pages. It must require links or identifiable citations for claims presented as official. If no reliable official evidence is found, the relationship must be labelled as a recommendation or uncertain inference, not an official prerequisite.
+
+The website itself does not verify that citations are real or that the AI's conclusions are correct. The review screen must make that limitation clear and leave the user in control.
+
+### Privacy and portability
+
+- No API key field, API calls, AI provider integration, or backend is required for this workflow.
+- The prompt should be provider-neutral and usable with a user's AI service of choice.
+- Show the user what curriculum data will be included before copying the prompt.
+- Do not automatically send or upload curriculum data to any third party.
+- JSON import must validate structure and module IDs, reject malformed responses safely, and never replace the active plan without explicit confirmation.
+
+### Revised implementation order
+
+1. Define the curriculum, choice-group, provenance, and prerequisite-suggestion schemas.
+2. Build and test local text extraction and manual curriculum editing.
+3. Add copyable, provider-neutral prompt generation from the confirmed curriculum.
+4. Add pasted JSON response import, schema validation, and relationship review.
+5. Integrate with the existing plan safely and retain the current JSON backup/restore flow.
+6. Test representative prompt/response fixtures, malformed AI output, unknown module references, and rejection/cancellation paths.
+
+### Revised acceptance criteria
+
+- The site never requires an AI API key and does not send curriculum data to an AI service itself.
+- Users can manually correct the parsed curriculum before a prompt is generated.
+- The generated prompt asks for evidence-based, clearly classified relationships and machine-readable JSON.
+- AI output is staged as a draft; it cannot alter the active plan without explicit review and confirmation.
+- Formal prerequisites and recommended prior knowledge remain different relationship types with separate provenance.
+- Malformed JSON, missing fields, invented module IDs, and unsupported official claims are flagged rather than silently accepted.
+
 ## Status
 
 Planning only. No import implementation has been made in this request yet.
