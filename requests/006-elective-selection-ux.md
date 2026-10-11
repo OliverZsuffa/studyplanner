@@ -22,6 +22,11 @@ Treat each elective/requirement group as a choice the student manages in one pla
 10. **Persistence and compatibility.** Save choices through the existing localStorage plan and preserve JSON import/export compatibility. Existing plans with no `selectedModuleIds` must be migrated or interpreted predictably; never silently make every alternative compulsory. Show a review state when an imported group has ambiguous or invalid selection data.
 11. **Accessible and clear.** Choosing/removing an option must work by keyboard and without drag-and-drop. Communicate group target, selected total, and validation messages in plain language. Keep dark mode consistent.
 12. **No curriculum invention.** Do not fabricate missing alternatives or official requirement semantics. Use the rule and target already stored in the group, and flag ambiguous data.
+13. **Keep recommendation separate from progress.** The current `ModuleStatus` (`not-started`, `in-progress`, `completed`) describes progress and must not be overloaded to mean whether a module is recommended. Add a separate recommendation field with backward-compatible defaults, for example `not-reviewed`, `recommended`, and `strongly-recommended`. The final labels and field name should match existing conventions after inspection. Recommendation must not affect ECTS, progress, grades, or whether a module is selected for an elective group.
+14. **Make status visible consistently.** Use a consistent colour and a readable text label/icon in Kanban cards, graph nodes, and list rows. Distinguish progress (not started, in progress, completed) from recommendation (not reviewed, recommended, strongly recommended) without requiring colour vision. Respect dark mode and accessible contrast. A module can be recommended but not planned, or planned but not recommended.
+15. **Plan membership remains separate from completion.** Planned semester assignment is not itself proof that a module is in progress or completed. Preserve current status when moving modules between semesters or selecting/deselecting elective alternatives.
+16. **Show requirement-group progress.** Each group should explain its current selection state in human terms, such as selected/required ECTS or selected/required module count, and show whether the target is met, incomplete, exceeded, or needs review. Do not imply a rule is satisfied when its semantics or options are ambiguous.
+17. **Surface prerequisite planning warnings.** Where dependency data supports it, identify planned modules whose required predecessor is not completed or whose planned semester is not earlier than the dependent module's planned semester. Treat missing/uncertain relationships carefully; distinguish official/formal prerequisites from recommendations and never present recommendations as formal blockers.
 
 ## Scope
 
@@ -29,6 +34,9 @@ Treat each elective/requirement group as a choice the student manages in one pla
 
 - Inspect `RequirementGroup`, `selectedModuleIds`, localStorage migration, JSON import/export, graph node/edge generation, Kanban rendering, semester ECTS totals, progress, grade average, and all related tests.
 - Add a dedicated requirement/elective selector showing options nested under their group.
+- Add a separate recommendation field/state, keeping it independent of the existing module progress status and planned semester.
+- Add consistent, accessible status and recommendation colour coding/labels across Kanban, graph, and list views.
+- Add live requirement-group progress summaries and visible, source-aware prerequisite planning warnings.
 - Filter unselected elective alternatives out of the graph and Kanban; selected options join the normal planning views.
 - Add choose/remove controls and enforce supported rule constraints with clear disabled states and explanatory feedback.
 - Correct shared model helpers so elective membership, selected-state, ECTS totals, progress, and grade weighting use one consistent definition.
@@ -36,6 +44,7 @@ Treat each elective/requirement group as a choice the student manages in one pla
 - Preserve existing module metadata when changing a selection.
 - Add unit tests for rule boundaries, exact-ECTS target behaviour, semester totals, progress/grade calculations, hidden options, graph edges with hidden endpoints, persistence/migration, and overlapping groups where applicable.
 - Update `knowledge/README.md` and this request with implementation and verification results.
+- Keep broad filtering controls and undo/history out of this implementation unless inspection shows they are essential to the above workflows; record them as follow-up candidates instead.
 
 ### Exclude
 
@@ -55,7 +64,10 @@ Treat each elective/requirement group as a choice the student manages in one pla
 5. Filter normal plan views to selected modules plus modules outside any elective group. Keep the full catalogue in plan data and the dedicated option menu. Ensure graph dependencies are only drawn when both endpoints are visible.
 6. Recalculate per-semester totals and all aggregate calculations from the same selected-plan definition. Ensure a selected elective is counted in its planned semester, and an unselected alternative is never counted.
 7. Verify persistence, import/export, and legacy plans. Deselecting must not erase module metadata. Add regression tests before updating documentation.
-8. Run the full test suite and production build, review the diff, update the knowledge base and this request, then check GitHub Actions and the deployed Pages URL before claiming completion.
+8. Add recommendation state without conflating it with `ModuleStatus`; migrate legacy plans with a safe neutral default and ensure import/export round-trips the field.
+9. Apply a shared status/recommendation visual language across Kanban, graph and list, including text/icon labels and dark-mode/accessibility checks.
+10. Add group progress summaries and source-aware prerequisite planning warnings using existing relationship kinds and provenance; do not create new formal prerequisite claims.
+11. Run the full test suite and production build, review the diff, update the knowledge base and this request, then check GitHub Actions and the deployed Pages URL before claiming completion.
 
 ## Acceptance criteria
 
@@ -68,9 +80,34 @@ Treat each elective/requirement group as a choice the student manages in one pla
 - Progress totals, completed ECTS, and grade averages follow the same selected-module semantics.
 - Hidden elective alternatives do not produce broken graph edges or crashes.
 - Existing saved plans and JSON files remain usable; missing selection data does not accidentally select every alternative.
+- A module's progress status, recommendation state, and planned semester are independent; moving/selecting a module does not overwrite its progress or recommendation.
+- Legacy plans without recommendation data receive a neutral default and import/export preserves the new field.
+- Recommendation/progress colours and labels are consistent across Kanban, graph and list, readable in dark mode, and not colour-only.
+- Requirement groups show accurate live selected ECTS/count and a clear met/incomplete/invalid/needs-review state.
+- Prerequisite warnings distinguish formal required relationships from recommended ones and flag semester-order conflicts only where the data supports that conclusion.
 - Tests and production build pass; documentation records actual verification and deployment state.
+
+## Additional manual test scenarios
+
+- A legacy module with no recommendation field is shown as neutral/not reviewed after migration.
+- Changing recommendation never changes progress status, grade, result, planned semester, ECTS totals, or elective selection.
+- Changing progress status never changes recommendation.
+- A recommended module can remain unplanned; a planned module can remain not reviewed.
+- Kanban, graph, and list show consistent labels/colours for each state in light and dark themes.
+- Status remains understandable without colour (labels/icons and accessible contrast).
+- A requirement group updates selected ECTS/count immediately when an option is chosen or removed, including exact-target, min-target, max-target, module-count and needs-review cases.
+- A required predecessor scheduled in the same or a later semester is flagged as a planning conflict when both semesters are known; an unknown semester is not guessed.
+- Recommended relationships are displayed as recommendations, not hard prerequisite failures.
+- Import/export and localStorage round-trip the added recommendation field and preserve old files.
+
+## Deferred follow-ups
+
+- Advanced filters for recommendation/progress/semester.
+- Undo/history for accidental edits.
+These should be considered after the core data model and selection workflows are stable.
 
 ## Status
 
-- Planning only. No implementation changes are included in this request yet.
+- Planning only. No application implementation changes are included in this request yet.
+- Scope expanded to include independent recommendation state, consistent accessible status colour coding, group progress summaries, and source-aware prerequisite planning warnings.
 - Waiting for explicit user approval before implementation, following the repository workflow.
