@@ -122,6 +122,5 @@ Implemented on `docs/006-elective-selection-ux`:
 
 ### Verification
 
-- Unit tests and production build: pending GitHub Actions verification.
-- Live deployment: not yet verified. The Pages deployment workflow only deploys from `main`; this feature branch requires a passing PR build and merge before it can go live.
-- Do not mark the request complete until the CI build/tests pass and, after merge, the Pages deployment and live URL are checked.
+- GitHub Actions run [#71](https://github.com/OliverZsuffa/studyplanner/actions/runs/38165189862) completed successfully on 2026-10-11. The TypeScript check/production build, unit tests, and Pages artifact upload all passed.
+- The deploy job was correctly skipped for the pull request. Live deployment remains pending merge to `main`, followed by checking the Pages workflow and deployed URL.
