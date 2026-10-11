@@ -44,7 +44,11 @@ export function parseQuickCourseLines(text: string, defaults: { ects: string; se
 
   return dataLines.map((line, index) => {
     const separator = separatorFor(line);
-    const fields = separator ? line.split(separator).map((part) => part.trim()) : [line];
+    let fields = separator ? line.split(separator).map((part) => part.trim()) : [line];
+    if (separator === ',' && fields.length > 1) {
+      const hasStructuredFields = /^\\d+(?:[.,]\\d+)?$/.test(fields[2] ?? '') || CODE_LIKE.test(fields[0]) || CODE_LIKE.test(fields[1] ?? '');
+      if (!hasStructuredFields) fields = [line];
+    }
     const draft: QuickCourseDraft = {
       key: `quick-${index}-${line.toLowerCase()}`,
       title: fields[0] ?? '',
