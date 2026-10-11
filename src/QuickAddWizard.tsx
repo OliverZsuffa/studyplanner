@@ -36,7 +36,7 @@ export default function QuickAddWizard({ currentPlan, onApply, onClose }: Props)
     const next = parseQuickCourseLines(text, { ects: defaultEcts, semester: defaultSemester, category: defaultCategory || 'Core' });
     setDrafts(next);
     const flags = getQuickCourseDuplicateFlags(next, currentPlan.modules);
-    setSelectedKeys(new Set(next.filter((draft, index) => !flags[index].existing && !flags[index].batch).map((draft) => draft.key)));
+    setSelectedKeys(new Set(next.filter((_, index) => !flags[index].existing && !flags[index].batch).map((draft) => draft.key)));
     setParsed(true);
   };
 
@@ -64,7 +64,7 @@ export default function QuickAddWizard({ currentPlan, onApply, onClose }: Props)
     if (modules.length) onApply(modules);
   };
 
-  const toggleAll = (checked: boolean) => setSelectedKeys(new Set(checked ? drafts.filter((draft, index) => errors[index].length === 0).map((draft) => draft.key) : []));
+  const toggleAll = (checked: boolean) => setSelectedKeys(new Set(checked ? drafts.filter((_, index) => errors[index].length === 0).map((draft) => draft.key) : []));
 
   return <div className="quick-add-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="quick-add-dialog" role="dialog" aria-modal="true" aria-labelledby="quick-add-title">
