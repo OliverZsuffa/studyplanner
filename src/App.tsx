@@ -173,10 +173,6 @@ function App() {
     setToast('Progress updated');
   };
 
-  const updateSelected = (patch: Partial<StudyModule>) => {
-    if (!selected) return;
-    setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, ...patch } : module) }));
-  };
 
   const handleConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target || connection.source === connection.target) return;
