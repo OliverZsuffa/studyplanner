@@ -4,8 +4,8 @@ export const samplePlan: StudyPlan = {
   name: 'Business Informatics',
   institution: 'Illustrative sample · replace with your official study plan',
   modules: [
-    { id: 'logic', title: 'Logic & Discrete Structures', code: 'WI-101', semester: 1, ects: 5, status: 'completed', category: 'Foundations', description: 'A sample introduction to formal reasoning, sets, relations, and discrete structures.' },
-    { id: 'micro', title: 'Economics I: Microeconomics', code: 'WI-102', semester: 1, ects: 5, status: 'completed', category: 'Business', description: 'A sample introduction to individual decisions, markets, and incentives.' },
+    { id: 'logic', title: 'Logic & Discrete Structures', code: 'WI-101', semester: 1, ects: 5, status: 'completed', result: 'passed', category: 'Foundations', description: 'A sample introduction to formal reasoning, sets, relations, and discrete structures.' },
+    { id: 'micro', title: 'Economics I: Microeconomics', code: 'WI-102', semester: 1, ects: 5, status: 'completed', result: 'passed', category: 'Business', description: 'A sample introduction to individual decisions, markets, and incentives.' },
     { id: 'intro-wi', title: 'Introduction to Business Informatics', code: 'WI-103', semester: 1, ects: 5, status: 'in-progress', category: 'Core', description: 'How information systems connect business processes, data, and technology.' },
     { id: 'accounting', title: 'Financial Accounting', code: 'WI-104', semester: 1, ects: 5, status: 'not-started', category: 'Business', description: 'A sample overview of financial statements and accounting fundamentals.' },
     { id: 'algorithms', title: 'Algorithms & Data Structures', code: 'WI-201', semester: 2, ects: 6, status: 'not-started', category: 'Computer science', description: 'Core algorithmic techniques, data structures, and complexity.' },

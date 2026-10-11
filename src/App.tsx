@@ -142,7 +142,8 @@ function App() {
   const available = useMemo(() => getAvailableModules(plan), [plan]);
   const progress = useMemo(() => getProgress(plan), [plan]);
   const gradedModules = plan.modules.filter((module) => module.result === 'passed' && typeof module.grade === 'number' && Number.isFinite(module.grade));
-  const gradeAverage = gradedModules.length ? (gradedModules.reduce((sum, module) => sum + (module.grade ?? 0), 0) / gradedModules.length).toFixed(2) : '—';
+  const gradeWeight = gradedModules.reduce((sum, module) => sum + module.ects, 0);
+  const gradeAverage = gradeWeight ? (gradedModules.reduce((sum, module) => sum + (module.grade ?? 0) * module.ects, 0) / gradeWeight).toFixed(2) : '—';
   const semesters = useMemo(() => Array.from({ length: Math.max(6, ...plan.modules.map((module) => module.semester), 1) }, (_, index) => index + 1), [plan.modules]);
   const semesterTotals = useMemo(() => semesters.map((semester) => { const modules = plan.modules.filter((module) => module.semester === semester); return { semester, modules, ects: modules.reduce((sum, module) => sum + module.ects, 0), completed: modules.filter((module) => module.result === 'passed').reduce((sum, module) => sum + module.ects, 0) }; }), [plan.modules, semesters]);
   const selected = plan.modules.find((module) => module.id === selectedId) ?? null;
@@ -294,7 +295,7 @@ function App() {
         </section>
 
         <section className="semester-planning" aria-label="Semester workload">
-          <div className="semester-planning-heading"><div><div className="eyebrow"><CalendarDays size={14} /> YOUR PLAN AT A GLANCE</div><h2>Semester workload</h2><p>ECTS are based on the semester assigned to each course. Change a course’s semester to try a different plan.</p></div><div className="grade-average"><Award size={19} /><span><small>Grade average</small><strong>{gradeAverage}</strong><em>{gradedModules.length ? `from ${gradedModules.length} passed graded modules` : 'Add grades to calculate'}</em></span></div></div>
+          <div className="semester-planning-heading"><div><div className="eyebrow"><CalendarDays size={14} /> YOUR PLAN AT A GLANCE</div><h2>Semester workload</h2><p>ECTS are based on the semester assigned to each course. Change a course’s semester to try a different plan.</p></div><div className="grade-average"><Award size={19} /><span><small>Grade average</small><strong>{gradeAverage}</strong><em>{gradedModules.length ? `ECTS-weighted · ${gradeWeight} ECTS graded` : 'Add grades to calculate'}</em></span></div></div>
           <div className="semester-grid">{semesterTotals.map(({ semester, modules, ects, completed }) => <button key={semester} className={'semester-card ' + (modules.length ? '' : 'semester-empty')} onClick={() => { setSemesterFilter(String(semester)); document.querySelector('.planner-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><span className="semester-card-top"><strong>Semester {semester}</strong><span>{modules.length} {modules.length === 1 ? 'course' : 'courses'}</span></span><span className="semester-ects">{ects}<small> ECTS planned</small></span><span className="semester-progress"><i style={{ width: ects ? `${Math.min(100, completed / ects * 100)}%` : '0%' }} /></span><span className="semester-card-foot">{completed} of {ects} ECTS passed</span></button>)}</div>
         </section>
 
@@ -311,6 +312,7 @@ function App() {
             </div>
           </div>
 
+          <div className="how-to-use"><span className="how-to-number">1</span><span><strong>Select a course</strong><small>Open its details</small></span><span className="how-to-arrow">→</span><span className="how-to-number">2</span><span><strong>Update your plan</strong><small>Semester, status, result, grade</small></span><span className="how-to-arrow">→</span><span className="how-to-number">3</span><span><strong>Arrange the map</strong><small>Drag cards; connect the handles</small></span></div>
           <div className="planner-toolbar">
             <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a module..." /><kbd>⌘ K</kbd></label>
             <div className="filter-control"><Filter size={15} /><select value={semesterFilter} onChange={(event) => setSemesterFilter(event.target.value)} aria-label="Filter by semester"><option value="all">All semesters</option>{[...new Set(plan.modules.map((module) => module.semester))].sort((a, b) => a - b).map((semester) => <option key={semester} value={String(semester)}>Semester {semester}</option>)}</select></div>
@@ -374,7 +376,7 @@ function App() {
                     <option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option>
                   </select>
                   <div className="result-fields"><label className="form-label" htmlFor="module-result">Exam result<select id="module-result" value={selected.result ?? 'unrecorded'} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, result: event.target.value === 'unrecorded' ? undefined : event.target.value as 'passed' | 'failed' } : module) }))}><option value="unrecorded">Not recorded</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label><label className="form-label" htmlFor="module-grade">Grade <small>German scale, 1.0 (best) to 4.0 (pass)</small><input id="module-grade" type="number" min="1" max="5" step="0.1" placeholder="e.g. 2.3" value={selected.grade ?? ''} onChange={(event) => { const raw = event.target.value; const grade = raw === '' ? undefined : Math.max(1, Math.min(5, Number(raw))); setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, grade } : module) })); }} /></label></div>
-                  <p className="grade-note">The average includes only courses marked <strong>Passed</strong> with a grade entered. This is a simple ECTS-unweighted average.</p>
+                  <p className="grade-note">ECTS-weighted average of courses marked <strong>Passed</strong> with a grade from 1.0 to 4.0. Failed or ungraded courses are excluded.</p>
                   <div className="detail-divider" />
                   <div className="dependency-heading"><span>Prerequisites & connections</span><CircleHelp size={15} /></div>
                   {requiredIncoming.length > 0 && <div className="dependency-group"><div className="dependency-label official-label">REQUIRED FIRST</div>{requiredIncoming.map((dependency) => {

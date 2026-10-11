@@ -55,7 +55,7 @@ export function getProgress(plan: StudyPlan) {
   const completed = plan.modules.filter((module) => module.status === 'completed').length;
   const totalEcts = plan.modules.reduce((sum, module) => sum + module.ects, 0);
   const completedEcts = plan.modules
-    .filter((module) => module.status === 'completed')
+    .filter((module) => module.result === 'passed')
     .reduce((sum, module) => sum + module.ects, 0);
   return {
     completed,
