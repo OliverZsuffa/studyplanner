@@ -152,5 +152,5 @@ export function toDependency(relationship: AiRelationship): Dependency {
 }
 
 export function createRequirementGroup(title: string, rule: RequirementGroup['rule'], target: number): RequirementGroup {
-  return { id: `group-${slug(title)}-${Date.now().toString(36)}`, title: title.trim() || 'Elective group', rule, target, moduleIds: [] };
+  return { id: `group-${slug(title)}-${Date.now().toString(36)}`, title: title.trim() || 'Elective group', rule, target, moduleIds: [], selectedModuleIds: [] };
 }
