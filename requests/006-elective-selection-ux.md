@@ -123,4 +123,4 @@ Implemented on `docs/006-elective-selection-ux`:
 ### Verification
 
 - GitHub Actions run [#71](https://github.com/OliverZsuffa/studyplanner/actions/runs/38165189862) completed successfully on 2026-10-11. The TypeScript check/production build, unit tests, and Pages artifact upload all passed.
-- The deploy job was correctly skipped for the pull request. Live deployment remains pending merge to `main`, followed by checking the Pages workflow and deployed URL.
+- The PR was merged as `e1a7f5062760c46ee95abd65a0b2e462c954c18f`. Main workflow run [#73](https://github.com/OliverZsuffa/studyplanner/actions/runs/38165311407) completed successfully: production build, unit tests, artifact upload, and the GitHub Pages deploy job all passed. The browsing tool could not independently open the published URL, so direct browser smoke-test confirmation remains unverified.
