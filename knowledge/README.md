@@ -43,3 +43,11 @@ The curriculum import workflow is implemented in `src/ImportWizard.tsx` and `src
 
 ## Current implementation state
 The first prototype lives on main. It includes a React Flow map, list view, progress statuses, localStorage persistence, JSON import/export, and manual module creation. The current sample is illustrative and only uses recommended links, because verified official prerequisites have not yet been supplied. The Pages workflow builds and tests the app before deploying; check the Actions run and live URL before saying the deployment is ready.
+
+
+## Curriculum extraction and semester semantics (Request 004)
+- The recommended import path is a provider-neutral AI prompt plus pasted JSON review. The browser does not upload curriculum documents or fetch arbitrary URLs for the user.
+- The AI extraction schema is `studyplanner-curriculum/v1`; prerequisite analysis remains a separate flow using `studyplanner-prerequisites/v1`.
+- Official study-plan semester (`recommendedSemester`) and the student's personal semester (`plannedSemester`) are distinct. Legacy `semester` values migrate to personal planned semester only; they are not treated as official recommendations.
+- The local text parser is a fallback and leaves semester unknown rather than defaulting to semester 1.
+- Formal availability checks only required dependencies. Next-step recommendations exclude a module when any known required or recommended predecessor remains incomplete.
