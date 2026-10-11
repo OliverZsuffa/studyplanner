@@ -45,4 +45,4 @@ Reduce repetitive setup work dramatically while preserving every existing capabi
 - Automated checks pass and the Pages deployment workflow succeeds before calling the work complete.
 
 ## Status
-Implementation committed on `feat/major-usability-refresh` and proposed in [PR #9](https://github.com/OliverZsuffa/studyplanner/pull/9). Batch entry, parser/duplicate tests, keyboard shortcuts, and responsive mobile styling are implemented. CI verification and Pages deployment are pending; do not merge or claim live until the workflow succeeds.
+Implemented and merged in [PR #9](https://github.com/OliverZsuffa/studyplanner/pull/9). TypeScript check, production build, unit tests, Pages artifact upload, and the post-merge Pages deployment all passed in [workflow run #97](https://github.com/OliverZsuffa/studyplanner/actions/runs/38176965487). A manual visual pass on physical mobile devices was not available in this environment, so real-device confirmation remains outstanding.
