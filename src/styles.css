@@ -253,3 +253,56 @@ footer > span:last-child { letter-spacing: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* UX refresh: dark-first, higher contrast, clearer controls */
+.app-shell.dark-mode { color:#e7edf4; background:#11161d; --ink:#e7edf4; --muted:#a0adbb; --line:#36414e; --surface:#1b232d; --green:#77c99a; --green-dark:#8be0ab; }
+.dark-mode .topbar { background:#171e27f2; border-color:#303b48; }
+.dark-mode .brand { color:#e8f1eb; } .dark-mode .brand-light { color:#9baaa0; }
+.dark-mode .topbar-context,.dark-mode .welcome-copy,.dark-mode .section-heading p { color:#a0adbb; }
+.dark-mode h1,.dark-mode h2,.dark-mode h3,.dark-mode .stat-number { color:#edf3f8; } .dark-mode h1 span { color:#8bd8a4; }
+.dark-mode .plan-picker,.dark-mode .stat-card,.dark-mode .planner-section,.dark-mode .details-panel,.dark-mode .add-modal,.dark-mode .button-quiet,.dark-mode .filter-control,.dark-mode .react-flow__controls-button,.dark-mode .semester-card,.dark-mode .grade-average { color:#e1e9f0; background:#1b232d; border-color:#36414e; }
+.dark-mode .plan-icon,.dark-mode .stat-icon,.dark-mode .avatar-button span { background:#293b35; color:#91d7a7; }
+.dark-mode .plan-label strong,.dark-mode .next-course,.dark-mode .details-panel h3,.dark-mode .dependency-heading,.dark-mode .dependency-row strong,.dark-mode .list-module-name strong,.dark-mode .empty-state strong { color:#e3eaf1; }
+.dark-mode .plan-label>span,.dark-mode .plan-label small,.dark-mode .stat-heading,.dark-mode .stat-foot,.dark-mode .details-code,.dark-mode .detail-type,.dark-mode .field-label,.dark-mode .dependency-label,.dark-mode .detail-description,.dark-mode .dependency-row small,.dark-mode .detail-footer-note,.dark-mode .bottom-note,.dark-mode .semester-card-top span,.dark-mode .semester-card-foot { color:#a0adbb; }
+.dark-mode .planner-layout,.dark-mode .graph-panel { background:#141b23; border-color:#36414e; } .dark-mode .details-panel { border-color:#36414e; }
+.dark-mode .module-node { background:#202a36; border:1px solid #657789; box-shadow:0 6px 18px #0005; }
+.dark-mode .module-node:hover { border-color:#86d7a1; } .dark-mode .module-node.is-selected { border:2px solid #8bd8a4; box-shadow:0 0 0 3px #8bd8a433,0 8px 20px #0006; }
+.dark-mode .module-node.is-available:not(.status-completed) { background:#1d3029; } .dark-mode .node-title { color:#f0f5fa; }
+.dark-mode .node-code,.dark-mode .node-meta,.dark-mode .node-links { color:#b2bfcd; } .dark-mode .node-bottom { border-top-color:#3b4857; }
+.dark-mode .react-flow__edge-path { stroke-width:3.5px; } .dark-mode .react-flow__controls { border-color:#44515f; }
+.dark-mode .react-flow__controls-button { color:#e4ebf2; border-bottom-color:#44515f; } .dark-mode .react-flow__minimap { background:#202a36; border-color:#44515f; }
+.dark-mode .graph-legend { background:#202a36ed; border-color:#44515f; } .dark-mode .graph-legend span { color:#c4d0dc; }
+.dark-mode .detail-divider,.dark-mode .dependency-row + .dependency-row { background:#36414e; border-color:#36414e; }
+.dark-mode .status-select,.dark-mode .form-label input,.dark-mode .form-label select,.dark-mode .search-box { color:#e5edf4; background:#141b23; border-color:#465362; }
+.dark-mode .search-box input { color:#e5edf4; } .dark-mode .search-box kbd { color:#bdc9d5; background:#202a36; border-color:#465362; }
+.dark-mode .filter-control select { color:#d9e3ed; } .dark-mode .view-toggle { background:#141b23; border-color:#36414e; }
+.dark-mode .view-toggle button { color:#b0bdca; } .dark-mode .view-toggle button.active { color:#e5f5e9; background:#2b3b34; box-shadow:none; }
+.dark-mode .list-module { border-bottom-color:#36414e; } .dark-mode .list-module:hover,.dark-mode .list-module.selected { background:#22332c; border-color:#42634f; }
+.dark-mode .list-semester,.dark-mode .ects-badge { color:#a0e4b4; background:#263d31; } .dark-mode .category-badge,.dark-mode .status-pill.not-started { color:#c2cdd7; background:#2a3440; }
+.dark-mode .no-dependencies { color:#bdc9d5; background:#222d39; } .dark-mode .detail-empty p,.dark-mode .empty-state { color:#a7b4c1; }
+.dark-mode .empty-illustration { color:#a0e4b4; background:#263d31; } .dark-mode .next-strip { background:#1b2c24; border-color:#355343; }
+.dark-mode .next-strip strong { color:#b5ebc5; } .dark-mode .next-strip p { color:#b2c6b7; } .dark-mode .next-strip button { color:#c6efd1; background:#24392d; border-color:#3c604a; }
+.dark-mode .toast { color:#d7f5df; background:#20372a; border-color:#3c604a; } .dark-mode .semester-planning { border-color:#36414e; background:#171e27; }
+.dark-mode .semester-card:hover { border-color:#77c99a; background:#22332c; } .dark-mode .semester-card-top strong { color:#e5edf4; }
+.dark-mode .semester-ects { color:#eaf3fa; } .dark-mode .semester-ects small,.dark-mode .grade-average small,.dark-mode .grade-average em,.dark-mode .grade-note { color:#a0adbb; }
+.dark-mode .semester-progress { background:#344252; } .dark-mode .grade-average { background:#202a36; } .dark-mode .grade-average strong { color:#b5ebc5; }
+.dark-mode .semester-empty { opacity:.72; }
+.semester-planning { margin:0 0 28px; padding:22px 24px 20px; border:1px solid #e5e9e2; border-radius:16px; background:#fff; }
+.semester-planning-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:17px; }
+.semester-planning-heading h2 { margin:6px 0; } .semester-planning-heading p { margin:0; max-width:650px; color:var(--muted); font-size:12px; line-height:1.5; }
+.semester-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; }
+.semester-card { display:flex; min-width:0; flex-direction:column; gap:12px; padding:14px; text-align:left; border:1px solid #e2e8e0; border-radius:12px; color:#202a23; background:#fbfcfa; transition:border-color .15s,transform .15s; }
+.semester-card:hover { border-color:#81aa88; transform:translateY(-2px); } .semester-card-top { display:flex; flex-direction:column; gap:4px; }
+.semester-card-top strong { color:#334337; font-size:12px; } .semester-card-top span { color:#89958b; font-size:10px; }
+.semester-ects { font:800 25px/1 Manrope,sans-serif; letter-spacing:-.7px; color:#243127; } .semester-ects small { font:500 10px 'DM Sans',sans-serif; letter-spacing:0; color:#879187; }
+.semester-progress { display:block; height:6px; overflow:hidden; border-radius:8px; background:#e9eee8; } .semester-progress i { display:block; height:100%; border-radius:inherit; background:#66a87a; }
+.semester-card-foot { color:#89958b; font-size:10px; } .semester-empty { opacity:.7; }
+.grade-average { display:flex; align-items:center; gap:12px; min-width:195px; padding:13px 16px; border:1px solid #e2e8e0; border-radius:12px; color:#4e805b; background:#f7faf6; }
+.grade-average span { display:flex; flex-direction:column; gap:2px; } .grade-average small { color:#89958b; font-size:10px; }
+.grade-average strong { color:#2e593a; font:800 24px/1.1 Manrope,sans-serif; } .grade-average em { color:#89958b; font-size:9px; font-style:normal; }
+.result-fields { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px; } .result-fields .form-label { min-width:0; margin-bottom:0; }
+.result-fields .form-label small { display:block; margin:4px 0 3px; line-height:1.35; } .detail-field-gap { margin-bottom:17px; }
+.grade-note { margin:8px 0 0; color:#89958b; font-size:10px; line-height:1.5; }
+@media (max-width:1100px) { .semester-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:760px) { .semester-planning { padding:16px 12px; } .semester-planning-heading { align-items:flex-start; flex-direction:column; } .semester-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .grade-average { width:100%; } .theme-toggle span { display:none; } .result-fields { grid-template-columns:1fr; } }

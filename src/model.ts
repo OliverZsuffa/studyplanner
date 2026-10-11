@@ -10,6 +10,8 @@ export interface StudyModule {
   status: ModuleStatus;
   description: string;
   category: string;
+  grade?: number;
+  result?: 'passed' | 'failed';
 }
 
 export interface Dependency {

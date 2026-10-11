@@ -17,7 +17,7 @@ import {
 import {
   ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CheckCircle2, ChevronDown,
   CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List,
-  Plus, Search, Settings2, Sparkles, Target, X, Zap,
+  Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award,
 } from 'lucide-react';
 import { getAvailableModules, getProgress, statusLabels, type Dependency, type ModuleStatus, type StudyModule, type StudyPlan } from './model';
 import { samplePlan } from './samplePlan';
@@ -125,6 +125,7 @@ function downloadJson(plan: StudyPlan) {
 
 function App() {
   const [plan, setPlan] = useState<StudyPlan>(readSavedPlan);
+  const [darkMode, setDarkMode] = useState(() => { try { return localStorage.getItem('studyplanner.theme') !== 'light'; } catch { return true; } });
   const [selectedId, setSelectedId] = useState<string | null>('algorithms');
   const [query, setQuery] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('all');
@@ -140,6 +141,10 @@ function App() {
   const importRef = useRef<HTMLInputElement>(null);
   const available = useMemo(() => getAvailableModules(plan), [plan]);
   const progress = useMemo(() => getProgress(plan), [plan]);
+  const gradedModules = plan.modules.filter((module) => module.result === 'passed' && typeof module.grade === 'number' && Number.isFinite(module.grade));
+  const gradeAverage = gradedModules.length ? (gradedModules.reduce((sum, module) => sum + (module.grade ?? 0), 0) / gradedModules.length).toFixed(2) : '—';
+  const semesters = useMemo(() => Array.from({ length: Math.max(6, ...plan.modules.map((module) => module.semester), 1) }, (_, index) => index + 1), [plan.modules]);
+  const semesterTotals = useMemo(() => semesters.map((semester) => { const modules = plan.modules.filter((module) => module.semester === semester); return { semester, modules, ects: modules.reduce((sum, module) => sum + module.ects, 0), completed: modules.filter((module) => module.result === 'passed').reduce((sum, module) => sum + module.ects, 0) }; }), [plan.modules, semesters]);
   const selected = plan.modules.find((module) => module.id === selectedId) ?? null;
   const filteredModules = useMemo(() => plan.modules.filter((module) => {
     const matchesQuery = (module.title + ' ' + module.code + ' ' + module.category).toLowerCase().includes(query.toLowerCase());
@@ -154,6 +159,9 @@ function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
   }, [plan]);
+  useEffect(() => {
+    try { localStorage.setItem('studyplanner.theme', darkMode ? 'dark' : 'light'); } catch { /* storage may be unavailable */ }
+  }, [darkMode]);
 
   const selectModule = useCallback((id: string) => setSelectedId(id), []);
   const graph = useMemo(() => makeGraph(plan, available, selectedId, selectModule), [plan, available, selectedId, selectModule]);
@@ -231,7 +239,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={'app-shell ' + (darkMode ? 'dark-mode' : 'light-mode')}>
       <header className="topbar">
         <a className="brand" href="#home" aria-label="Studyplanner home">
           <span className="brand-mark"><GraduationCap size={21} strokeWidth={2.2} /></span>
@@ -239,6 +247,7 @@ function App() {
         </a>
         <div className="topbar-context"><span className="context-dot" /> YOUR DEGREE, IN FOCUS</div>
         <div className="topbar-actions">
+          <button className="button button-quiet theme-toggle" onClick={() => setDarkMode((current) => !current)} aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}<span>{darkMode ? 'Light mode' : 'Dark mode'}</span></button>
           <button className="button button-quiet" onClick={() => downloadJson(plan)}><ArrowDownToLine size={16} /> Export</button>
           <button className="button button-quiet" onClick={() => importRef.current?.click()}><ArrowUpFromLine size={16} /> Import</button>
           <input ref={importRef} type="file" accept=".json,application/json" hidden onChange={importPlan} />
@@ -251,7 +260,7 @@ function App() {
           <div>
             <div className="eyebrow"><Sparkles size={13} /> YOUR PERSONAL STUDY MAP</div>
             <h1>Make your degree <span>make sense.</span></h1>
-            <p className="welcome-copy">See the connections. Find your next step. Make the plan yours.</p>
+            <p className="welcome-copy">Your courses, grades and semester workload in one place.</p>
           </div>
           <div className="plan-picker">
             <div className="plan-icon"><BookOpen size={18} /></div>
@@ -284,12 +293,17 @@ function App() {
           </div>
         </section>
 
+        <section className="semester-planning" aria-label="Semester workload">
+          <div className="semester-planning-heading"><div><div className="eyebrow"><CalendarDays size={14} /> YOUR PLAN AT A GLANCE</div><h2>Semester workload</h2><p>ECTS are based on the semester assigned to each course. Change a course’s semester to try a different plan.</p></div><div className="grade-average"><Award size={19} /><span><small>Grade average</small><strong>{gradeAverage}</strong><em>{gradedModules.length ? `from ${gradedModules.length} passed graded modules` : 'Add grades to calculate'}</em></span></div></div>
+          <div className="semester-grid">{semesterTotals.map(({ semester, modules, ects, completed }) => <button key={semester} className={'semester-card ' + (modules.length ? '' : 'semester-empty')} onClick={() => { setSemesterFilter(String(semester)); document.querySelector('.planner-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><span className="semester-card-top"><strong>Semester {semester}</strong><span>{modules.length} {modules.length === 1 ? 'course' : 'courses'}</span></span><span className="semester-ects">{ects}<small> ECTS planned</small></span><span className="semester-progress"><i style={{ width: ects ? `${Math.min(100, completed / ects * 100)}%` : '0%' }} /></span><span className="semester-card-foot">{completed} of {ects} ECTS passed</span></button>)}</div>
+        </section>
+
         <section className="planner-section">
           <div className="section-heading">
             <div>
               <div className="eyebrow section-eyebrow">THE BIG PICTURE</div>
               <h2>Your study map</h2>
-              <p>Follow the paths between modules. Move cards around to organise your view.</p>
+              <p>Choose a course to edit its status, grade or planned semester. Drag cards to arrange the map.</p>
             </div>
             <div className="view-toggle" aria-label="Choose view">
               <button className={view === 'graph' ? 'active' : ''} onClick={() => setView('graph')}><LayoutGrid size={15} /> Map</button>
@@ -309,7 +323,6 @@ function App() {
             <div className="graph-panel">
               {view === 'graph' ? (
                 <>
-                  <div className="semester-labels">{[...new Set(plan.modules.map((module) => module.semester))].sort((a, b) => a - b).map((semester) => <span key={semester}>SEMESTER {semester}</span>)}</div>
                   <ReactFlow
                     nodes={nodes.filter((node) => filteredModules.some((module) => module.id === node.id))}
                     edges={edges.filter((edge) => filteredModules.some((module) => module.id === edge.source) && filteredModules.some((module) => module.id === edge.target))}
@@ -325,7 +338,7 @@ function App() {
                     nodesConnectable
                     proOptions={{ hideAttribution: true }}
                   >
-                    <Background color="#e7eae4" gap={22} size={1} />
+                    <Background color={darkMode ? '#343e49' : '#bfc9bd'} gap={22} size={1} />
                     <Controls showInteractive={false} position="bottom-right" />
                     <MiniMap pannable zoomable nodeStrokeWidth={3} maskColor="rgba(245,247,243,.72)" />
                   </ReactFlow>
@@ -350,14 +363,18 @@ function App() {
               {selected ? (
                 <>
                   <div className="details-header"><div className="detail-type"><span className="detail-type-dot" /> MODULE DETAILS</div><button className="icon-button" aria-label="Close module details" onClick={() => setSelectedId(null)}><X size={17} /></button></div>
-                  <div className="details-code">{selected.code} <span>·</span> Semester {selected.semester}</div>
+                  <div className="details-code">{selected.code} <span>·</span> {selected.category}</div>
                   <h3>{selected.title}</h3>
-                  <div className="detail-badges"><span className="ects-badge">{selected.ects} ECTS</span><span className="category-badge">{selected.category}</span></div>
+                  <div className="detail-badges"><span className="ects-badge">{selected.ects} ECTS</span><span className="category-badge">{statusLabels[selected.status]}</span></div>
+                  <label className="field-label" htmlFor="planned-semester">PLANNED SEMESTER</label>
+                  <select id="planned-semester" className="status-select detail-field-gap" value={selected.semester} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: Math.max(1, Number(event.target.value) || 1) } : module) }))}>{semesters.map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}<option value={Math.max(...semesters) + 1}>Semester {Math.max(...semesters) + 1}</option></select>
                   <p className="detail-description">{selected.description}</p>
                   <label className="field-label" htmlFor="module-status">YOUR PROGRESS</label>
                   <select id="module-status" className="status-select" value={selected.status} onChange={(event) => changeStatus(selected.id, event.target.value as ModuleStatus)}>
                     <option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option>
                   </select>
+                  <div className="result-fields"><label className="form-label" htmlFor="module-result">Exam result<select id="module-result" value={selected.result ?? 'unrecorded'} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, result: event.target.value === 'unrecorded' ? undefined : event.target.value as 'passed' | 'failed' } : module) }))}><option value="unrecorded">Not recorded</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label><label className="form-label" htmlFor="module-grade">Grade <small>German scale, 1.0 (best) to 4.0 (pass)</small><input id="module-grade" type="number" min="1" max="5" step="0.1" placeholder="e.g. 2.3" value={selected.grade ?? ''} onChange={(event) => { const raw = event.target.value; const grade = raw === '' ? undefined : Math.max(1, Math.min(5, Number(raw))); setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, grade } : module) })); }} /></label></div>
+                  <p className="grade-note">The average includes only courses marked <strong>Passed</strong> with a grade entered. This is a simple ECTS-unweighted average.</p>
                   <div className="detail-divider" />
                   <div className="dependency-heading"><span>Prerequisites & connections</span><CircleHelp size={15} /></div>
                   {requiredIncoming.length > 0 && <div className="dependency-group"><div className="dependency-label official-label">REQUIRED FIRST</div>{requiredIncoming.map((dependency) => {
@@ -373,7 +390,7 @@ function App() {
                   <div className="detail-footer-note"><Sparkles size={15} /><span>Suggested connections are guidance, not official exam requirements unless explicitly marked required.</span></div>
                 </>
               ) : (
-                <div className="detail-empty"><div className="empty-illustration"><BookOpen size={24} /></div><h3>Pick a module</h3><p>Select a card on the map to see its details, progress, and connections.</p><button className="button button-primary" onClick={() => setShowAdd(true)}><Plus size={15} /> Add a module</button></div>
+                <div className="detail-empty"><div className="empty-illustration"><BookOpen size={24} /></div><h3>Start with a course</h3><p>Choose a card to record progress and grades, or add a course that is missing from your plan.</p><button className="button button-primary" onClick={() => setShowAdd(true)}><Plus size={15} /> Add your first course</button></div>
               )}
             </aside>
           </div>
