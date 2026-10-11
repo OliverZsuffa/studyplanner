@@ -1,4 +1,5 @@
 export type ModuleStatus = 'not-started' | 'in-progress' | 'completed';
+export type ModuleRecommendation = 'not-reviewed' | 'recommended' | 'strongly-recommended';
 export type DependencyKind = 'required' | 'recommended';
 export type RequirementRule = 'min-ects' | 'max-ects' | 'exact-ects' | 'module-count' | 'one-from-each';
 
@@ -26,6 +27,8 @@ export interface StudyModule {
   sourceLocation?: string;
   ects: number;
   status: ModuleStatus;
+  /** Guidance only; independent from progress and semester planning. */
+  recommendation?: ModuleRecommendation;
   description: string;
   category: string;
   grade?: number;
@@ -71,6 +74,7 @@ export function migrateStudyPlan(value: StudyPlan): StudyPlan {
       ...module,
       plannedSemester: typeof module.plannedSemester === 'number' ? module.plannedSemester : typeof module.semester === 'number' ? module.semester : null,
       recommendedSemester: typeof module.recommendedSemester === 'number' ? module.recommendedSemester : null,
+      recommendation: module.recommendation === 'recommended' || module.recommendation === 'strongly-recommended' ? module.recommendation : 'not-reviewed',
     })),
   };
 }
@@ -100,9 +104,51 @@ export function getAvailableModules(plan: StudyPlan): Set<string> {
   );
 }
 
+export function getModuleRequirementGroups(plan: StudyPlan, moduleId: string): RequirementGroup[] {
+  return (plan.requirementGroups ?? []).filter((group) => group.moduleIds.includes(moduleId));
+}
+
+/** A module shared by groups counts only when selected in every group that claims it. */
 export function isModuleCountedInPlan(plan: StudyPlan, moduleId: string): boolean {
-  const groups = (plan.requirementGroups ?? []).filter((group) => group.moduleIds.includes(moduleId));
-  return groups.length === 0 || groups.some((group) => group.selectedModuleIds?.includes(moduleId));
+  const groups = getModuleRequirementGroups(plan, moduleId);
+  return groups.length === 0 || groups.every((group) => (group.selectedModuleIds ?? []).includes(moduleId));
+}
+
+export function isModuleVisibleInPlan(plan: StudyPlan, moduleId: string): boolean { return isModuleCountedInPlan(plan, moduleId); }
+
+export interface RequirementGroupSummary { selectedCount: number; selectedEcts: number; optionCount: number; targetReached: boolean; state: 'complete' | 'incomplete' | 'over-limit' | 'needs-review'; message: string; }
+
+export function getRequirementGroupSummary(plan: StudyPlan, group: RequirementGroup): RequirementGroupSummary {
+  const options = plan.modules.filter((module) => group.moduleIds.includes(module.id));
+  const selected = options.filter((module) => (group.selectedModuleIds ?? []).includes(module.id));
+  const selectedEcts = selected.reduce((sum, module) => sum + module.ects, 0);
+  const selectedCount = selected.length;
+  if (group.rule === 'one-from-each') return { selectedCount, selectedEcts, optionCount: options.length, targetReached: false, state: 'needs-review', message: 'Needs review: separate choice areas are not represented in the data.' };
+  if (!Number.isFinite(group.target) || group.target < 0 || options.length === 0) return { selectedCount, selectedEcts, optionCount: options.length, targetReached: false, state: 'needs-review', message: options.length === 0 ? 'No options linked yet; add or review options.' : 'Requirement target needs review.' };
+  if (group.rule === 'exact-ects') {
+    if (selectedEcts > group.target) return { selectedCount, selectedEcts, optionCount: options.length, targetReached: false, state: 'over-limit', message: `Over target by ${selectedEcts - group.target} ECTS.` };
+    const targetReached = selectedEcts === group.target;
+    return { selectedCount, selectedEcts, optionCount: options.length, targetReached, state: targetReached ? 'complete' : 'incomplete', message: targetReached ? 'ECTS target reached.' : `${group.target - selectedEcts} ECTS remaining.` };
+  }
+  if (group.rule === 'min-ects') { const targetReached = selectedEcts >= group.target; return { selectedCount, selectedEcts, optionCount: options.length, targetReached, state: targetReached ? 'complete' : 'incomplete', message: targetReached ? 'Minimum reached.' : `${group.target - selectedEcts} ECTS still needed.` }; }
+  if (group.rule === 'max-ects') { const targetReached = selectedEcts <= group.target; return { selectedCount, selectedEcts, optionCount: options.length, targetReached, state: targetReached ? (selectedEcts === group.target ? 'complete' : 'incomplete') : 'over-limit', message: targetReached ? `${group.target - selectedEcts} ECTS available within the limit.` : `Over limit by ${selectedEcts - group.target} ECTS.` }; }
+  const targetReached = selectedCount === group.target;
+  const state = selectedCount > group.target ? 'over-limit' : targetReached ? 'complete' : 'incomplete';
+  return { selectedCount, selectedEcts, optionCount: options.length, targetReached, state, message: state === 'complete' ? 'Required number of modules selected.' : state === 'over-limit' ? `Remove ${selectedCount - group.target} module(s) to meet the limit.` : `${group.target - selectedCount} module(s) still needed.` };
+}
+
+export function canSelectRequirementOption(plan: StudyPlan, groupId: string, moduleId: string): { allowed: boolean; reason?: string } {
+  const group = (plan.requirementGroups ?? []).find((candidate) => candidate.id === groupId);
+  const module = plan.modules.find((candidate) => candidate.id === moduleId);
+  if (!group || !module || !group.moduleIds.includes(moduleId)) return { allowed: false, reason: 'This option is not linked to the requirement.' };
+  if ((group.selectedModuleIds ?? []).includes(moduleId)) return { allowed: true };
+  if (group.rule === 'one-from-each') return { allowed: false, reason: 'Needs review: separate choice areas are not represented in the imported data.' };
+  const selected = plan.modules.filter((candidate) => group.moduleIds.includes(candidate.id) && (group.selectedModuleIds ?? []).includes(candidate.id));
+  const selectedEcts = selected.reduce((sum, candidate) => sum + candidate.ects, 0);
+  if (group.rule === 'exact-ects' && selectedEcts + module.ects > group.target) return { allowed: false, reason: `Would exceed the exact target of ${group.target} ECTS.` };
+  if (group.rule === 'max-ects' && selectedEcts + module.ects > group.target) return { allowed: false, reason: `Would exceed the maximum of ${group.target} ECTS.` };
+  if (group.rule === 'module-count' && selected.length + 1 > group.target) return { allowed: false, reason: `The requirement allows ${group.target} module(s).` };
+  return { allowed: true };
 }
 
 export function getProgress(plan: StudyPlan) {

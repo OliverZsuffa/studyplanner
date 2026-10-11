@@ -59,3 +59,15 @@ The prototype includes a semester Kanban with drag-and-drop plus an accessible s
 - Module creation/editing uses a shared form. Weighted grade average includes only selected/countable modules marked passed with a numeric grade from 1.0 through 4.0 and positive ECTS; failed, ungraded, invalid-grade, and unselected elective alternatives are excluded.
 - The progress denominator and total ECTS exclude unselected alternatives in elective groups.
 - Request 005 adds regression tests for empty elective option lists, distinct groups, weighted grade averages, and elective workload. Check the PR's GitHub Actions status before treating tests/build as verified.
+
+
+## Elective selection and module recommendation state (Request 006)
+
+- Requirement-group alternatives remain in the plan data, but only modules selected in every requirement group that references them are counted and shown in the Kanban, dependency graph, and list. Modules outside all requirement groups remain visible by default.
+- The Electives & requirements panel is the explicit choice interface. It shows each option, current selection, selected ECTS/count, target status, and disabled reasons for selections that would exceed exact/max ECTS or module-count limits.
+- `one-from-each` is explicitly marked as needing review because the current requirement-group schema does not represent its separate subgroups. It is not guessed or silently treated as an ordinary ECTS group.
+- `ModuleStatus` remains progress only (`not-started`, `in-progress`, `completed`). `recommendation` is a separate optional field (`not-reviewed`, `recommended`, `strongly-recommended`); legacy plans migrate to `not-reviewed`. Recommendation does not affect progress, ECTS, grade averages, or elective selection.
+- Recommendation labels accompany colours across graph nodes, Kanban cards, list rows, and module details. Dark-mode styles are provided.
+- Required dependency warnings identify unfinished predecessors for planned modules and required relationships whose known semester order is same/later. Recommended relationships are not presented as formal blockers.
+- Overlapping requirement-group membership counts a module only when it is selected in every group that references it; the choice panel calls this out. The module's ECTS is counted once because plan totals iterate modules, not group memberships.
+- Request 006's unit tests cover exact ECTS boundaries, unselected alternative visibility/accounting, overlapping groups, legacy recommendation migration, and unsupported `one-from-each`. GitHub Actions run [#71](https://github.com/OliverZsuffa/studyplanner/actions/runs/38165189862) completed successfully on 2026-10-11: type-check/production build, unit tests, and Pages artifact upload all passed. PR checks do not deploy to Pages; deployment verification is still required after merge.

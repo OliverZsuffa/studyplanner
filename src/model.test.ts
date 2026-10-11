@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getWeightedGradeAverage, migrateStudyPlan, withPlannedSemester, type StudyPlan } from './model';
+import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, withPlannedSemester, type StudyPlan } from './model';
 
 const plan: StudyPlan = {
   name: 'Test',
@@ -82,5 +82,65 @@ describe('study plan calculations', () => {
       requirementGroups: [{ id: 'elective', title: 'Elective', rule: 'min-ects', target: 5, moduleIds: ['b', 'c'], selectedModuleIds: ['b'] }],
     };
     expect(getProgress(electivePlan)).toMatchObject({ total: 2, totalEcts: 10 });
+  });
+});
+
+
+describe('elective selection and recommendations', () => {
+  const electivePlan: StudyPlan = {
+    ...plan,
+    modules: [
+      { ...plan.modules[0], id: 'core', ects: 3 },
+      { ...plan.modules[1], id: 'six-a', ects: 6, plannedSemester: 2 },
+      { ...plan.modules[2], id: 'six-b', ects: 6, plannedSemester: 3 },
+      { ...plan.modules[2], id: 'three', ects: 3, plannedSemester: 1 },
+    ],
+    dependencies: [],
+    requirementGroups: [{ id: 'exact', title: 'Choose 6 ECTS', rule: 'exact-ects', target: 6, moduleIds: ['six-a', 'six-b', 'three'], selectedModuleIds: [] }],
+  };
+
+  it('defaults legacy modules to a neutral recommendation without changing progress', () => {
+    const migrated = migrateStudyPlan(plan);
+    expect(migrated.modules[0].recommendation).toBe('not-reviewed');
+    expect(migrated.modules[0].status).toBe('completed');
+    expect(migrated.modules[0].result).toBe('passed');
+  });
+
+  it('allows exactly the target ECTS and blocks an additional option that would exceed it', () => {
+    const selected = { ...electivePlan, requirementGroups: [{ ...electivePlan.requirementGroups![0], selectedModuleIds: ['six-a'] }] };
+    expect(canSelectRequirementOption(selected, 'exact', 'six-b')).toEqual({ allowed: false, reason: 'Would exceed the exact target of 6 ECTS.' });
+    expect(canSelectRequirementOption(selected, 'exact', 'three')).toEqual({ allowed: false, reason: 'Would exceed the exact target of 6 ECTS.' });
+    expect(getRequirementGroupSummary(selected, selected.requirementGroups![0])).toMatchObject({ selectedEcts: 6, targetReached: true, state: 'complete' });
+  });
+
+  it('keeps unselected elective alternatives out of plan views and ECTS', () => {
+    const selected = { ...electivePlan, requirementGroups: [{ ...electivePlan.requirementGroups![0], selectedModuleIds: ['six-a'] }] };
+    expect(isModuleVisibleInPlan(selected, 'six-a')).toBe(true);
+    expect(isModuleVisibleInPlan(selected, 'six-b')).toBe(false);
+    expect(isModuleCountedInPlan(selected, 'six-b')).toBe(false);
+    expect(getProgress(selected).totalEcts).toBe(9);
+  });
+
+  it('does not count a module shared by groups until it is selected in every linked group', () => {
+    const shared = { ...plan, requirementGroups: [
+      { id: 'one', title: 'First', rule: 'min-ects' as const, target: 1, moduleIds: ['b'], selectedModuleIds: ['b'] },
+      { id: 'two', title: 'Second', rule: 'min-ects' as const, target: 1, moduleIds: ['b'], selectedModuleIds: [] },
+    ] };
+    expect(isModuleCountedInPlan(shared, 'b')).toBe(false);
+    const both = { ...shared, requirementGroups: shared.requirementGroups!.map((group) => ({ ...group, selectedModuleIds: ['b'] })) };
+    expect(isModuleCountedInPlan(both, 'b')).toBe(true);
+    expect(getProgress(both).totalEcts).toBe(15);
+  });
+
+  it('flags one-from-each when the current schema cannot express its subgroups', () => {
+    const group = { id: 'areas', title: 'Areas', rule: 'one-from-each' as const, target: 2, moduleIds: ['b', 'c'], selectedModuleIds: ['b'] };
+    expect(getRequirementGroupSummary(plan, group).state).toBe('needs-review');
+    expect(canSelectRequirementOption({ ...plan, requirementGroups: [group] }, 'areas', 'c').allowed).toBe(false);
+  });
+
+  it('keeps recommendation separate from status and semester fields', () => {
+    const original = migrateStudyPlan(plan).modules[0];
+    const recommended = { ...original, recommendation: 'strongly-recommended' as const };
+    expect(recommended).toMatchObject({ recommendation: 'strongly-recommended', status: 'completed', plannedSemester: 1 });
   });
 });
