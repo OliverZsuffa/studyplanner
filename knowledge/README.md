@@ -101,3 +101,14 @@ The prototype includes a semester Kanban with drag-and-drop plus an accessible s
 - Dependency management supports creating, editing, and deleting directed hard/soft connections. Hard connections are purple solid edges; soft connections are dotted. Manually entered hard dependencies are marked uncertain unless supported with evidence.
 - JSON export serializes the full plan object, so these new fields travel with the existing progress, grades, elective choices, recommendations and dependencies. JSON import passes through the shared migration function.
 - Request 009's scheduling helper tests cover semester mapping, seasonal availability, legacy migration defaults, time/date overlap, schedule conflicts, and teaching/exam calendar events. GitHub Actions run [#88](https://github.com/OliverZsuffa/studyplanner/actions/runs/38174710899) passed the TypeScript check/production build, unit tests, and Pages artifact upload. Post-merge Pages deployment and a live browser smoke test still need verification.
+
+
+## Major usability and mobile refresh (Request 010)
+
+- `Quick add many` supports pasting plain course lists or separated/header-labelled spreadsheet rows, setting ECTS/category/semester defaults once, editing a review table, and adding multiple courses in one action.
+- Duplicate titles/codes against the current plan or within the pasted batch are flagged and unchecked by default; they are never overwritten silently. The batch workflow creates course records only and does not infer dependencies, elective requirements, official semesters, or teaching dates.
+- Parser tests cover plain lists, blank lines, header-based column mapping, code-first rows, defaults, punctuation, and duplicate detection.
+- `Ctrl/⌘+K` focuses course search; Escape closes the active dialog.
+- Mobile CSS uses touch-sized controls, a swipeable semester board, responsive filters/actions, full-width bottom-sheet-style forms, safe-area spacing, and reduced-motion handling. Drag-and-drop remains optional; semester selects are retained.
+- Existing Plan/Map/List/Schedule workspaces, JSON portability, import/export, electives, prerequisites, grades, course availability, calendar, exams, and timetable conflict validation remain in place.
+- Verification is tracked in Request 010 and PR #9. The feature is not considered complete/live until the current branch's TypeScript/build/test workflow and the post-merge Pages deployment both succeed. A real-device/browser smoke test remains a separate check if no browser test environment is available.
