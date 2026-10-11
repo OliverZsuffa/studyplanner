@@ -23,7 +23,7 @@ import { canSelectRequirementOption, getAvailableModules, getNextStepModules, ge
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
 import SchedulingPanel from './SchedulingPanel';
-import { availabilityConflict, getTermForSemester } from './model';
+import { availabilityConflict, getTermForSemester, getTermLabel } from './model';
 
 const STORAGE_KEY = 'studyplanner.plan.v1';
 
