@@ -79,9 +79,10 @@ function makeGraph(plan: StudyPlan, available: Set<string>, selectedId: string |
     group.push(module);
     bySemester.set(semester, group);
   });
+  const maxPlannedSemester = Math.max(1, ...plan.modules.map((module) => getPlannedSemester(module) ?? 0));
   const positions = new Map<string, { x: number; y: number }>();
   [...bySemester.entries()].sort(([a], [b]) => a - b).forEach(([semester, modules]) => {
-    modules.forEach((module, index) => positions.set(module.id, { x: 80 + (semester - 1) * 340, y: 70 + index * 174 }));
+    modules.forEach((module, index) => positions.set(module.id, { x: 80 + ((semester === 99 ? maxPlannedSemester + 1 : semester) - 1) * 340, y: 70 + index * 174 }));
   });
   const nodes: ModuleFlowNode[] = plan.modules.map((module) => ({
     id: module.id,
@@ -274,7 +275,7 @@ function App() {
           <div className="stat-card next-card">
             <div className="stat-heading"><span>A good next step</span><span className="stat-icon blue"><Sparkles size={17} /></span></div>
             <div className="next-course">{nextStepModules.find((module) => module.status === 'in-progress')?.title ?? nextStepModules[0]?.title ?? (readyModules.length ? 'Finish recommended preparation first' : 'You are all caught up')}</div>
-            <button className="text-link" onClick={() => { if (nextStepModules[0]) { setSelectedId(nextStepModules[0].id); setView('graph'); } }}>Explore your next step <span>↗</span></button>
+            <button className="text-link" onClick={() => { const target = nextStepModules[0] ?? readyModules[0]; if (target) { const unfinished = plan.dependencies.find((dependency) => dependency.target === target.id && plan.modules.some((module) => module.id === dependency.source && module.status !== 'completed')); setSelectedId(unfinished?.source ?? target.id); setView('graph'); } }}>Explore your next step <span>↗</span></button>
           </div>
         </section>
 
@@ -356,7 +357,7 @@ function App() {
                   <label className="field-label" htmlFor="planned-semester">PLANNED SEMESTER</label>
                   <select id="planned-semester" className="status-select detail-field-gap" value={getPlannedSemester(selected) ?? ''} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: Number(event.target.value), plannedSemester: Number(event.target.value) } : module) }))}>{semesters.map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}<option value={Math.max(...semesters) + 1}>Semester {Math.max(...semesters) + 1}</option></select>
                   <div className="detail-source-note">Official study-plan semester: {selected.recommendedSemester ? `Semester ${selected.recommendedSemester}` : 'Not known'}{selected.sourceLocation ? ` · ${selected.sourceLocation}` : ''}</div>
-                  <p className="detail-description">{selected.description}</p>
+                  <p className="detail-description">{selected.description}</p>{(selected.sourceEvidence || selected.sourceLocation) && <div className="detail-source-note"><strong>Source evidence</strong>{selected.sourceEvidence ? <p>{selected.sourceEvidence}</p> : null}{selected.sourceLocation ? <small>{selected.sourceLocation}</small> : null}</div>}
                   <label className="field-label" htmlFor="module-status">YOUR PROGRESS</label>
                   <select id="module-status" className="status-select" value={selected.status} onChange={(event) => changeStatus(selected.id, event.target.value as ModuleStatus)}>
                     <option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option>
