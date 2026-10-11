@@ -17,7 +17,16 @@ async function extractPdf(file: File): Promise<string> {
   for (let n = 1; n <= pdf.numPages; n += 1) {
     const page = await pdf.getPage(n);
     const content = await page.getTextContent();
-    pages.push(`[Page ${n}]\n${content.items.map((item) => 'str' in item ? item.str : '').join(' ')}`);
+    const rows = new Map<number, { x: number; text: string }[]>();
+    for (const item of content.items) {
+      if (!('str' in item) || !('transform' in item)) continue;
+      const y = Math.round(item.transform[5]);
+      const row = rows.get(y) ?? [];
+      row.push({ x: item.transform[4], text: item.str });
+      rows.set(y, row);
+    }
+    const pageText = [...rows.entries()].sort(([a], [b]) => b - a).map(([, row]) => row.sort((a, b) => a.x - b.x).map((item) => item.text).join(' ')).join('\n');
+    pages.push(`[Page ${n}]\n${pageText}`);
   }
   return pages.join('\n\n');
 }
