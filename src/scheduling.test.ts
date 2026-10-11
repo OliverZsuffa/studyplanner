@@ -58,6 +58,8 @@ describe('weekly schedule validation', () => {
     module.exams = [{id:'exam-1',label:'Final',date:'2026-10-20',location:'Auditorium'}];
     const events = getCalendarEvents(planOf(module));
     expect(events.filter(e=>e.kind==='teaching').map(e=>e.date)).toEqual(['2026-10-05','2026-10-12','2026-10-19']);
+    expect(events.filter(e=>e.kind==='teaching-start')).toHaveLength(1);
+    expect(events.filter(e=>e.kind==='teaching-end')).toHaveLength(1);
     expect(events.find(e=>e.kind==='exam')).toMatchObject({date:'2026-10-20',location:'Auditorium',title:'Final'});
     const unscheduled = {...module,components:module.components?.map(c=>({...c,startDate:'',endDate:''}))};
     expect(getCalendarEvents(planOf(unscheduled)).filter(e=>e.kind==='teaching')).toHaveLength(0);
