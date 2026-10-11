@@ -141,6 +141,6 @@ Implemented on branch `docs/005-elective-import-reliability` (PR #3). The change
 
 ### Verification still required
 
-The changes were committed to the PR branch through GitHub. I could not run the npm test suite or production build in this environment, and the workflow lookup for the latest test commit returned no run. Therefore, build/tests and the deployed Pages site are **not yet verified**. Check the PR's Actions checks and fix any failures before merging or claiming deployment success.
+The changes were committed to the PR branch through GitHub. The first CI build caught a missing closing brace in the new editor modal; this was corrected. GitHub Actions run [#66](https://github.com/OliverZsuffa/studyplanner/actions/runs/38147999759) was pending at the time of this update. I could not run npm locally in this environment, so build/tests and the deployed Pages site are **not yet verified**. Check this run's result and fix any remaining failures before merging or claiming deployment success.
 
 The implementation is ready for CI review, but acceptance criteria requiring a successful test/build and deployment verification remain pending.
