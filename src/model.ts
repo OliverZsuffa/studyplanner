@@ -60,6 +60,10 @@ export function getPlannedSemester(module: StudyModule): number | null {
   return typeof module.plannedSemester === 'number' ? module.plannedSemester : typeof module.semester === 'number' ? module.semester : null;
 }
 
+export function withPlannedSemester(module: StudyModule, semester: number | null): StudyModule {
+  return { ...module, semester: semester ?? undefined, plannedSemester: semester };
+}
+
 export function migrateStudyPlan(value: StudyPlan): StudyPlan {
   return {
     ...value,
@@ -110,9 +114,23 @@ export function getProgress(plan: StudyPlan) {
     .reduce((sum, module) => sum + module.ects, 0);
   return {
     completed,
-    total: plan.modules.length,
-    percent: plan.modules.length ? Math.round((completed / plan.modules.length) * 100) : 0,
+    total: counted.length,
+    percent: counted.length ? Math.round((completed / counted.length) * 100) : 0,
     totalEcts,
     completedEcts,
   };
+}
+
+export function getWeightedGradeAverage(plan: StudyPlan) {
+  const graded = plan.modules.filter((module) =>
+    isModuleCountedInPlan(plan, module.id) &&
+    module.result === 'passed' &&
+    typeof module.grade === 'number' &&
+    Number.isFinite(module.grade) &&
+    module.grade >= 1 && module.grade <= 4 &&
+    module.ects > 0,
+  );
+  const ects = graded.reduce((sum, module) => sum + module.ects, 0);
+  const weightedSum = graded.reduce((sum, module) => sum + (module.grade ?? 0) * module.ects, 0);
+  return { average: ects ? weightedSum / ects : null, ects, count: graded.length };
 }

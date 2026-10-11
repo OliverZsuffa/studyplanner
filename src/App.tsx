@@ -17,9 +17,9 @@ import {
 import {
   ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CheckCircle2, ChevronDown,
   CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List,
-  Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award,
+  Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award, Columns3, Pencil,
 } from 'lucide-react';
-import { getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, isModuleCountedInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleStatus, type StudyModule, type StudyPlan } from './model';
+import { getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getWeightedGradeAverage, isModuleCountedInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester } from './model';
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
 
@@ -134,8 +134,14 @@ function App() {
   const [query, setQuery] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [view, setView] = useState<'graph' | 'list'>('graph');
+  const [view, setView] = useState<'kanban' | 'graph' | 'list'>('kanban');
   const [showAdd, setShowAdd] = useState(false);
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+  const [newCode, setNewCode] = useState('CUSTOM');
+  const [newDescription, setNewDescription] = useState('');
+  const [newStatus, setNewStatus] = useState<ModuleStatus>('not-started');
+  const [newResult, setNewResult] = useState<'unrecorded' | 'passed' | 'failed'>('unrecorded');
+  const [newGrade, setNewGrade] = useState('');
   const [toast, setToast] = useState('');
   const [newTitle, setNewTitle] = useState('');
   const [newSemester, setNewSemester] = useState('1');
@@ -145,9 +151,10 @@ function App() {
   const [showImport, setShowImport] = useState(false);
   const available = useMemo(() => getAvailableModules(plan), [plan]);
   const progress = useMemo(() => getProgress(plan), [plan]);
-  const gradedModules = plan.modules.filter((module) => isModuleCountedInPlan(plan, module.id) && module.result === 'passed' && typeof module.grade === 'number' && Number.isFinite(module.grade));
-  const gradeWeight = gradedModules.reduce((sum, module) => sum + module.ects, 0);
-  const gradeAverage = gradeWeight ? (gradedModules.reduce((sum, module) => sum + (module.grade ?? 0) * module.ects, 0) / gradeWeight).toFixed(2) : '—';
+  const gradeSummary = useMemo(() => getWeightedGradeAverage(plan), [plan]);
+  const gradeWeight = gradeSummary.ects;
+  const gradeAverage = gradeSummary.average === null ? '—' : gradeSummary.average.toFixed(2);
+  const gradedModules = gradeSummary.count;
   const semesters = useMemo(() => Array.from({ length: Math.max(6, ...plan.modules.map((module) => getPlannedSemester(module) ?? 0), 1) }, (_, index) => index + 1), [plan.modules]);
   const semesterTotals = useMemo(() => semesters.map((semester) => { const modules = plan.modules.filter((module) => getPlannedSemester(module) === semester && isModuleCountedInPlan(plan, module.id)); return { semester, modules, ects: modules.reduce((sum, module) => sum + module.ects, 0), completed: modules.filter((module) => module.result === 'passed').reduce((sum, module) => sum + module.ects, 0) }; }), [plan, semesters]);
   const selected = plan.modules.find((module) => module.id === selectedId) ?? null;
@@ -204,26 +211,58 @@ function App() {
     setPlan((current) => ({ ...current, dependencies: [...current.dependencies, dependency] }));
   }, [plan.dependencies]);
 
+  const openAddModule = () => {
+    setEditingModuleId(null); setNewTitle(''); setNewCode('CUSTOM'); setNewSemester('1'); setNewEcts('5');
+    setNewCategory('Core'); setNewDescription(''); setNewStatus('not-started'); setNewResult('unrecorded'); setNewGrade(''); setNewDependency('');
+    setShowAdd(true);
+  };
+
+  const openEditModule = (module: StudyModule) => {
+    setEditingModuleId(module.id); setNewTitle(module.title); setNewCode(module.code); setNewSemester(String(getPlannedSemester(module) ?? ''));
+    setNewEcts(String(module.ects)); setNewCategory(module.category); setNewDescription(module.description);
+    setNewStatus(module.status); setNewResult(module.result ?? 'unrecorded'); setNewGrade(module.grade === undefined ? '' : String(module.grade)); setNewDependency('');
+    setShowAdd(true);
+  };
+
+  const moveModule = (id: string, semester: number | null) => {
+    setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? withPlannedSemester(module, semester) : module) }));
+    setToast(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
+  };
+
   const addModule = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const title = newTitle.trim();
     if (!title) return;
-    const id = 'module-' + Date.now().toString(36);
-    const module: StudyModule = {
-      id, title, code: 'CUSTOM', semester: Math.max(1, Number(newSemester) || 1), plannedSemester: Math.max(1, Number(newSemester) || 1), recommendedSemester: null,
-      ects: Math.max(0, Number(newEcts) || 0), status: 'not-started',
-      description: 'Added by you. Edit this description to capture the module details.',
-      category: newCategory.trim() || 'Other',
-    };
-    const dependency = newDependency ? {
-      id: 'dep-' + Date.now().toString(36), source: newDependency, target: id,
-      kind: 'recommended' as const, provenance: 'user' as const, note: 'Added manually by you.',
-    } : null;
-    setPlan((current) => ({ ...current, modules: [...current.modules, module], dependencies: dependency ? [...current.dependencies, dependency] : current.dependencies }));
-    setSelectedId(id);
-    setNewTitle('');
+    const semester = newSemester.trim() ? Math.max(1, Math.min(20, Number(newSemester) || 1)) : null;
+    const grade = newGrade.trim() ? Number(newGrade) : undefined;
+    const result = newResult === 'unrecorded' ? undefined : newResult;
+    if (editingModuleId) {
+      setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === editingModuleId ? {
+        ...module, title, code: newCode.trim() || 'CUSTOM', category: newCategory.trim() || 'Other',
+        description: newDescription.trim(), ects: Math.max(0, Math.min(60, Number(newEcts) || 0)),
+        semester: semester ?? undefined, plannedSemester: semester, status: newStatus, result,
+        grade: grade !== undefined && Number.isFinite(grade) && grade >= 1 && grade <= 4 ? grade : undefined,
+      } : module) }));
+      setToast('Module updated');
+      setSelectedId(editingModuleId);
+    } else {
+      const id = 'module-' + Date.now().toString(36);
+      const module: StudyModule = {
+        id, title, code: newCode.trim() || 'CUSTOM', semester: semester ?? undefined, plannedSemester: semester, recommendedSemester: null,
+        ects: Math.max(0, Math.min(60, Number(newEcts) || 0)), status: newStatus,
+        description: newDescription.trim(), category: newCategory.trim() || 'Other',
+        ...(grade !== undefined && Number.isFinite(grade) && grade >= 1 && grade <= 4 ? { grade } : {}),
+        ...(result ? { result } : {}),
+      };
+      const dependency = newDependency ? {
+        id: 'dep-' + Date.now().toString(36), source: newDependency, target: id,
+        kind: 'recommended' as const, provenance: 'user' as const, note: 'Added manually by you.',
+      } : null;
+      setPlan((current) => ({ ...current, modules: [...current.modules, module], dependencies: dependency ? [...current.dependencies, dependency] : current.dependencies }));
+      setSelectedId(id);
+      setToast('Module added');
+    }
     setShowAdd(false);
-    setToast('Module added');
   };
 
   return (
@@ -281,7 +320,7 @@ function App() {
         </section>
 
         <section className="semester-planning" aria-label="Semester workload">
-          <div className="semester-planning-heading"><div><div className="eyebrow"><CalendarDays size={14} /> YOUR PLAN AT A GLANCE</div><h2>Semester workload</h2><p>ECTS are grouped by your planned semester, not the official study-plan recommendation. Change your planned semester without losing the original recommendation.</p></div><div className="grade-average"><Award size={19} /><span><small>Grade average</small><strong>{gradeAverage}</strong><em>{gradedModules.length ? `ECTS-weighted · ${gradeWeight} ECTS graded` : 'Add grades to calculate'}</em></span></div></div>
+          <div className="semester-planning-heading"><div><div className="eyebrow"><CalendarDays size={14} /> YOUR PLAN AT A GLANCE</div><h2>Semester workload</h2><p>ECTS are grouped by your planned semester, not the official study-plan recommendation. Change your planned semester without losing the original recommendation.</p></div><div className="grade-average"><Award size={19} /><span><small>Grade average</small><strong>{gradeAverage}</strong><em>{gradedModules ? `ECTS-weighted · ${gradeWeight} ECTS graded` : 'Add grades to calculate'}</em></span></div></div>
           <div className="semester-grid">{semesterTotals.map(({ semester, modules, ects, completed }) => <button key={semester} className={'semester-card ' + (modules.length ? '' : 'semester-empty')} onClick={() => { setSemesterFilter(String(semester)); document.querySelector('.planner-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><span className="semester-card-top"><strong>Semester {semester}</strong><span>{modules.length} {modules.length === 1 ? 'course' : 'courses'}</span></span><span className="semester-ects">{ects}<small> ECTS planned</small></span><span className="semester-progress"><i style={{ width: ects ? `${Math.min(100, completed / ects * 100)}%` : '0%' }} /></span><span className="semester-card-foot">{completed} of {ects} ECTS passed</span></button>)}</div>
           {plan.modules.some((module) => getPlannedSemester(module) === null) && <p className="semester-unplanned-note">{plan.modules.filter((module) => getPlannedSemester(module) === null).length} module(s) have no planned semester yet. <button className="text-link" onClick={() => { setSemesterFilter('unplanned'); document.querySelector('.planner-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>Review unplanned modules ↗</button></p>}
           {(plan.requirementGroups ?? []).length > 0 && <div className="choice-groups-summary"><div><h3>Elective requirements</h3><p>Only options marked as planned count toward your workload.</p></div>{(plan.requirementGroups ?? []).map((group) => { const options = plan.modules.filter((module) => group.moduleIds.includes(module.id)); const chosen = options.filter((module) => (group.selectedModuleIds ?? []).includes(module.id)); const chosenEcts = chosen.reduce((sum, module) => sum + module.ects, 0); const ruleText = group.rule === 'min-ects' ? `At least ${group.target} ECTS` : group.rule === 'max-ects' ? `At most ${group.target} ECTS` : group.rule === 'exact-ects' ? `Exactly ${group.target} ECTS` : group.rule === 'module-count' ? `Choose ${group.target} modules` : `Choose from ${group.target} areas`; return <div className="choice-group-summary" key={group.id}><div><strong>{group.title}</strong><small>{ruleText}</small></div><span>{chosenEcts} ECTS planned</span><small>{chosen.length} of {options.length} options selected</small></div>; })}</div>}
@@ -292,9 +331,10 @@ function App() {
             <div>
               <div className="eyebrow section-eyebrow">THE BIG PICTURE</div>
               <h2>Your study map</h2>
-              <p>Choose a course to edit its status, grade or planned semester. Drag cards to arrange the map.</p>
+              <p>Plan courses by semester, then switch to the map to explore dependencies.</p>
             </div>
             <div className="view-toggle" aria-label="Choose view">
+              <button className={view === 'kanban' ? 'active' : ''} onClick={() => setView('kanban')}><Columns3 size={15} /> Plan</button>
               <button className={view === 'graph' ? 'active' : ''} onClick={() => setView('graph')}><LayoutGrid size={15} /> Map</button>
               <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><List size={15} /> List</button>
             </div>
@@ -306,12 +346,31 @@ function App() {
             <div className="filter-control"><Filter size={15} /><select value={semesterFilter} onChange={(event) => setSemesterFilter(event.target.value)} aria-label="Filter by semester"><option value="all">All semesters</option><option value="unplanned">Unplanned</option>{[...new Set(plan.modules.map((module) => (getPlannedSemester(module) ?? 0)))].filter((semester) => semester > 0).sort((a, b) => a - b).map((semester) => <option key={semester} value={String(semester)}>Semester {semester}</option>)}</select></div>
             <div className="filter-control"><Clock3 size={15} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter by status"><option value="all">All statuses</option><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option></select></div>
             <div className="toolbar-spacer" />
-            <button className="button button-primary" onClick={() => setShowAdd(true)}><Plus size={16} /> Add module</button>
+            <button className="button button-primary" onClick={openAddModule}><Plus size={16} /> Add module</button>
           </div>
 
-          <div className={'planner-layout ' + (view === 'list' ? 'list-mode' : '')}>
+          <div className={'planner-layout ' + (view === 'list' ? 'list-mode' : '') + (view === 'kanban' ? ' kanban-mode' : '')}>
             <div className="graph-panel">
-              {view === 'graph' ? (
+              {view === 'kanban' ? (
+                <div className="kanban-board" aria-label="Semester planning board">
+                  {[...semesters.map((semester) => ({ semester, title: `Semester ${semester}` })), { semester: null as number | null, title: 'Unplanned' }].map((column) => {
+                    const columnModules = filteredModules.filter((module) => getPlannedSemester(module) === column.semester);
+                    const total = columnModules.filter((module) => isModuleCountedInPlan(plan, module.id)).reduce((sum, module) => sum + module.ects, 0);
+                    return <section className="kanban-column" key={column.title} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/studyplanner-module'); if (id) moveModule(id, column.semester); }} aria-label={column.title}>
+                      <header className="kanban-column-header"><div><strong>{column.title}</strong><small>{columnModules.length} {columnModules.length === 1 ? 'module' : 'modules'}</small></div><span>{total} ECTS</span></header>
+                      <div className="kanban-cards">
+                        {columnModules.map((module) => <article className={'kanban-card ' + (selectedId === module.id ? 'selected' : '')} key={module.id} draggable onDragStart={(event) => { event.dataTransfer.setData('text/studyplanner-module', module.id); event.dataTransfer.effectAllowed = 'move'; }} onClick={() => setSelectedId(module.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(module.id); } }} tabIndex={0} aria-label={`${module.title}, ${module.ects} ECTS`}>
+                          <div className="kanban-card-top"><span>{module.code}</span><button className="kanban-edit" aria-label={`Edit ${module.title}`} onClick={(event) => { event.stopPropagation(); openEditModule(module); }}><Pencil size={13} /></button></div>
+                          <strong>{module.title}</strong><p>{module.category} · {module.ects} ECTS</p>
+                          <div className="kanban-card-footer"><span className={'status-pill ' + module.status}>{statusLabels[module.status]}</span>{module.recommendedSemester && <small>Official S{module.recommendedSemester}</small>}</div>
+                          <label className="kanban-move" onClick={(event) => event.stopPropagation()}>Move to<select aria-label={`Move ${module.title} to semester`} value={getPlannedSemester(module) ?? ''} onChange={(event) => moveModule(module.id, event.target.value === '' ? null : Number(event.target.value))}><option value="">Unplanned</option>{semesters.map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}<option value={Math.max(...semesters) + 1}>Semester {Math.max(...semesters) + 1}</option></select></label>
+                        </article>)}
+                        {columnModules.length === 0 && <div className="kanban-empty">Drop a module here or use its “Move to” menu.</div>}
+                      </div>
+                    </section>;
+                  })}
+                </div>
+              ) : view === 'graph' ? (
                 <>
                   <ReactFlow
                     nodes={nodes.filter((node) => filteredModules.some((module) => module.id === node.id))}
@@ -352,7 +411,7 @@ function App() {
             <aside className="details-panel">
               {selected ? (
                 <>
-                  <div className="details-header"><div className="detail-type"><span className="detail-type-dot" /> MODULE DETAILS</div><button className="icon-button" aria-label="Close module details" onClick={() => setSelectedId(null)}><X size={17} /></button></div>
+                  <div className="details-header"><div className="detail-type"><span className="detail-type-dot" /> MODULE DETAILS</div><div className="detail-header-actions"><button className="icon-button" aria-label="Edit module" title="Edit module" onClick={() => openEditModule(selected)}><Pencil size={15} /></button><button className="icon-button" aria-label="Close module details" onClick={() => setSelectedId(null)}><X size={17} /></button></div></div>
                   <div className="details-code">{selected.code} <span>·</span> {selected.category}</div>
                   <h3>{selected.title}</h3>
                   <div className="detail-badges"><span className="ects-badge">{selected.ects} ECTS</span><span className="category-badge">{statusLabels[selected.status]}</span></div>
@@ -364,7 +423,7 @@ function App() {
                   <select id="module-status" className="status-select" value={selected.status} onChange={(event) => changeStatus(selected.id, event.target.value as ModuleStatus)}>
                     <option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option>
                   </select>
-                  <div className="result-fields"><label className="form-label" htmlFor="module-result">Exam result<select id="module-result" value={selected.result ?? 'unrecorded'} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, result: event.target.value === 'unrecorded' ? undefined : event.target.value as 'passed' | 'failed' } : module) }))}><option value="unrecorded">Not recorded</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label><label className="form-label" htmlFor="module-grade">Grade <small>German scale, 1.0 (best) to 4.0 (pass)</small><input id="module-grade" type="number" min="1" max="5" step="0.1" placeholder="e.g. 2.3" value={selected.grade ?? ''} onChange={(event) => { const raw = event.target.value; const grade = raw === '' ? undefined : Math.max(1, Math.min(5, Number(raw))); setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, grade } : module) })); }} /></label></div>
+                  <div className="result-fields"><label className="form-label" htmlFor="module-result">Exam result<select id="module-result" value={selected.result ?? 'unrecorded'} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, result: event.target.value === 'unrecorded' ? undefined : event.target.value as 'passed' | 'failed' } : module) }))}><option value="unrecorded">Not recorded</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label><label className="form-label" htmlFor="module-grade">Grade <small>German scale, 1.0 (best) to 4.0 (pass)</small><input id="module-grade" type="number" min="1" max="4" step="0.1" placeholder="e.g. 2.3" value={selected.grade ?? ''} onChange={(event) => { const raw = event.target.value; const grade = raw === '' ? undefined : Math.max(1, Math.min(4, Number(raw))); setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, grade } : module) })); }} /></label></div>
                   <p className="grade-note">ECTS-weighted average of courses marked <strong>Passed</strong> with a grade from 1.0 to 4.0. Failed or ungraded courses are excluded.</p>
                   <div className="detail-divider" />
                   <div className="dependency-heading"><span>Prerequisites & connections</span><CircleHelp size={15} /></div>
@@ -381,7 +440,7 @@ function App() {
                   <div className="detail-footer-note"><Sparkles size={15} /><span>Suggested connections are guidance, not official exam requirements unless explicitly marked required.</span></div>
                 </>
               ) : (
-                <div className="detail-empty"><div className="empty-illustration"><BookOpen size={24} /></div><h3>Start with a course</h3><p>Choose a card to record progress and grades, or add a course that is missing from your plan.</p><button className="button button-primary" onClick={() => setShowAdd(true)}><Plus size={15} /> Add your first course</button></div>
+                <div className="detail-empty"><div className="empty-illustration"><BookOpen size={24} /></div><h3>Start with a course</h3><p>Choose a card to record progress and grades, or add a course that is missing from your plan.</p><button className="button button-primary" onClick={openAddModule}><Plus size={15} /> Add your first course</button></div>
               )}
             </aside>
           </div>
@@ -397,12 +456,15 @@ function App() {
 
       {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(migrateStudyPlan(imported)); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); setToast('Study plan imported'); }} />}
       {showAdd && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><form className="add-modal" onSubmit={addModule}>
-        <div className="modal-heading"><div><div className="eyebrow">MAKE IT YOURS</div><h2>Add a module</h2><p>Add a course to your plan. You can edit its details later.</p></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
+        <div className="modal-heading"><div><div className="eyebrow">YOUR STUDY PLAN</div><h2>{editingModuleId ? 'Edit module' : 'Add a module'}</h2><p>Keep course details and planning information together.</p></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
         <label className="form-label">Module name<input autoFocus required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="e.g. Applied Statistics" /></label>
-        <div className="form-row"><label className="form-label">Semester<input type="number" min="1" max="20" value={newSemester} onChange={(event) => setNewSemester(event.target.value)} required /></label><label className="form-label">ECTS credits<input type="number" min="0" max="60" value={newEcts} onChange={(event) => setNewEcts(event.target.value)} required /></label></div>
-        <label className="form-label">Category<input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="e.g. Computer science" /></label>
-        <label className="form-label">Recommended preparation <span className="optional-label">OPTIONAL</span><select value={newDependency} onChange={(event) => setNewDependency(event.target.value)}><option value="">No connection yet</option>{plan.modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select><small>This creates a suggested connection, not a formal prerequisite.</small></label>
-        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="button button-primary"><FilePlus2 size={16} /> Add to plan</button></div>
+        <div className="form-row"><label className="form-label">Module code<input value={newCode} onChange={(event) => setNewCode(event.target.value)} placeholder="e.g. IN0001" /></label><label className="form-label">Category<input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="e.g. Computer science" /></label></div>
+        <div className="form-row"><label className="form-label">Planned semester<input type="number" min="1" max="20" value={newSemester} onChange={(event) => setNewSemester(event.target.value)} placeholder="Unplanned" /><small>Leave blank to keep this module unplanned.</small></label><label className="form-label">ECTS credits<input type="number" min="0" max="60" step=".5" value={newEcts} onChange={(event) => setNewEcts(event.target.value)} required /></label></div>
+        <label className="form-label">Description<textarea rows={3} value={newDescription} onChange={(event) => setNewDescription(event.target.value)} placeholder="What does this module cover?" /></label>
+        <div className="form-row"><label className="form-label">Progress<select value={newStatus} onChange={(event) => setNewStatus(event.target.value as ModuleStatus)}><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option></select></label><label className="form-label">Exam result<select value={newResult} onChange={(event) => setNewResult(event.target.value as 'unrecorded' | 'passed' | 'failed')}><option value="unrecorded">Not recorded</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label></div>
+        <label className="form-label">Grade <small>Optional, German scale 1.0–4.0 for the weighted average. Failed or ungraded courses are excluded.</small><input type="number" min="1" max="4" step=".1" value={newGrade} onChange={(event) => setNewGrade(event.target.value)} placeholder="e.g. 2.3" /></label>
+        {!editingModuleId && <label className="form-label">Recommended preparation <span className="optional-label">OPTIONAL</span><select value={newDependency} onChange={(event) => setNewDependency(event.target.value)}><option value="">No connection yet</option>{plan.modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select><small>This creates a suggested connection, not a formal prerequisite.</small></label>}
+        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="button button-primary"><FilePlus2 size={16} /> {editingModuleId ? 'Save changes' : 'Add to plan'}</button></div>
       </form></div>}
       {toast && <div className="toast"><CheckCircle2 size={16} /> {toast}<button aria-label="Dismiss notification" onClick={() => setToast('')}><X size={14} /></button></div>}
     </div>
