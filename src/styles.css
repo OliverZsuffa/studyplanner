@@ -472,3 +472,31 @@ footer > span:last-child { letter-spacing: 0; }
 .app-shell.dark-mode .import-hint,.app-shell.dark-mode .import-notice,.app-shell.dark-mode .import-privacy { color:#d0d9e2; }
 .app-shell.light-mode .import-table input,.app-shell.light-mode .import-table textarea { color:#17212b; background:#fff; border-color:#7c8996; }
 @media (max-width: 640px) { .how-to-steps { align-items:flex-start; } .elective-group-heading { align-items:flex-start; flex-wrap:wrap; } .module-group-link { align-items:flex-start; flex-direction:column; } }
+
+
+/* Request 008: first-run guided tour and plain-language cues. */
+.privacy-note { display:flex; align-items:center; gap:6px; margin:8px 0 0; color:var(--muted); font-size:11px; line-height:1.45; }
+.privacy-note svg { flex:none; color:#4d9463; }
+.section-hint { display:flex; align-items:flex-start; gap:6px; margin-top:9px; color:var(--muted); font-size:11px; line-height:1.5; }
+.section-hint svg { flex:none; margin-top:1px; }
+.tour-backdrop { position:fixed; inset:0; z-index:1200; display:grid; place-items:center; padding:20px; background:rgba(10,17,14,.62); backdrop-filter:blur(5px); }
+.tour-dialog { width:min(100%,520px); padding:clamp(22px,4vw,34px); border:1px solid var(--line); border-radius:20px; color:var(--ink); background:var(--surface); box-shadow:0 24px 80px rgba(0,0,0,.3); animation:tour-enter .2s ease-out; }
+.tour-dialog-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.tour-icon { display:grid; place-items:center; width:44px; height:44px; border-radius:13px; color:#286b42; background:#dcfce7; }
+.tour-eyebrow { margin-bottom:8px; color:var(--muted); font-size:10px; font-weight:800; letter-spacing:1.2px; }
+.tour-dialog h2 { margin:0 0 12px; color:var(--ink); font:800 clamp(23px,4vw,30px)/1.2 Manrope,sans-serif; letter-spacing:-.6px; }
+.tour-dialog > p { margin:0; color:var(--muted); font-size:14px; line-height:1.7; }
+.tour-tip { display:flex; align-items:flex-start; gap:9px; margin-top:20px; padding:13px 14px; border:1px solid #b7dfc1; border-radius:10px; color:#245d35; background:#effbf1; font-size:12px; line-height:1.55; }
+.tour-tip svg { flex:none; margin-top:1px; }
+.tour-progress { display:flex; gap:6px; margin:24px 0 18px; }
+.tour-progress span { height:4px; flex:1; border-radius:10px; background:var(--line); }
+.tour-progress span.active { background:#4b9660; }
+.tour-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.tour-actions > div { display:flex; gap:7px; }
+.tour-actions .button { display:inline-flex; align-items:center; gap:6px; }
+.dark-mode .tour-icon { color:#c7f7d5; background:#16452a; }
+.dark-mode .tour-tip { border-color:#386847; color:#d7f7df; background:#1b3423; }
+.dark-mode .tour-progress span.active { background:#78c58b; }
+@keyframes tour-enter { from { opacity:0; transform:translateY(8px) scale(.99); } to { opacity:1; transform:translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .tour-dialog { animation:none; } }
+@media (max-width:520px) { .tour-actions { align-items:stretch; flex-direction:column-reverse; } .tour-actions > div { justify-content:flex-end; } .tour-actions > .button { justify-content:center; } }
