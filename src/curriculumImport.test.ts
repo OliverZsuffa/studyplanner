@@ -75,7 +75,7 @@ describe('AI curriculum extraction validation', () => {
     const prompt = makeCurriculumExtractionPrompt();
     expect(prompt).toContain('studyplanner-curriculum/v1');
     expect(prompt).toContain('otherwise null');
-    expect(prompt).toContain('Keep alternative modules as alternatives');
+    expect(prompt).toContain('Listing alternatives does not make all of them compulsory');
     expect(prompt).toContain('Always create a requirementGroups entry');
     expect(prompt).toContain('empty moduleCodes array');
     expect(prompt).toContain('Keep distinct or nested elective areas separate');
