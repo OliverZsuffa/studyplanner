@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Background,
   Controls,
@@ -19,8 +19,9 @@ import {
   CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List,
   Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award,
 } from 'lucide-react';
-import { getAvailableModules, getProgress, statusLabels, type Dependency, type ModuleStatus, type StudyModule, type StudyPlan } from './model';
+import { getAvailableModules, getProgress, isModuleCountedInPlan, statusLabels, type Dependency, type ModuleStatus, type StudyModule, type StudyPlan } from './model';
 import { samplePlan } from './samplePlan';
+import ImportWizard from './ImportWizard';
 
 const STORAGE_KEY = 'studyplanner.plan.v1';
 
@@ -138,14 +139,14 @@ function App() {
   const [newEcts, setNewEcts] = useState('5');
   const [newCategory, setNewCategory] = useState('Core');
   const [newDependency, setNewDependency] = useState('');
-  const importRef = useRef<HTMLInputElement>(null);
+  const [showImport, setShowImport] = useState(false);
   const available = useMemo(() => getAvailableModules(plan), [plan]);
   const progress = useMemo(() => getProgress(plan), [plan]);
-  const gradedModules = plan.modules.filter((module) => module.result === 'passed' && typeof module.grade === 'number' && Number.isFinite(module.grade));
+  const gradedModules = plan.modules.filter((module) => isModuleCountedInPlan(plan, module.id) && module.result === 'passed' && typeof module.grade === 'number' && Number.isFinite(module.grade));
   const gradeWeight = gradedModules.reduce((sum, module) => sum + module.ects, 0);
   const gradeAverage = gradeWeight ? (gradedModules.reduce((sum, module) => sum + (module.grade ?? 0) * module.ects, 0) / gradeWeight).toFixed(2) : '—';
   const semesters = useMemo(() => Array.from({ length: Math.max(6, ...plan.modules.map((module) => module.semester), 1) }, (_, index) => index + 1), [plan.modules]);
-  const semesterTotals = useMemo(() => semesters.map((semester) => { const modules = plan.modules.filter((module) => module.semester === semester); return { semester, modules, ects: modules.reduce((sum, module) => sum + module.ects, 0), completed: modules.filter((module) => module.result === 'passed').reduce((sum, module) => sum + module.ects, 0) }; }), [plan.modules, semesters]);
+  const semesterTotals = useMemo(() => semesters.map((semester) => { const modules = plan.modules.filter((module) => module.semester === semester && isModuleCountedInPlan(plan, module.id)); return { semester, modules, ects: modules.reduce((sum, module) => sum + module.ects, 0), completed: modules.filter((module) => module.result === 'passed').reduce((sum, module) => sum + module.ects, 0) }; }), [plan, semesters]);
   const selected = plan.modules.find((module) => module.id === selectedId) ?? null;
   const filteredModules = useMemo(() => plan.modules.filter((module) => {
     const matchesQuery = (module.title + ' ' + module.code + ' ' + module.category).toLowerCase().includes(query.toLowerCase());
@@ -220,25 +221,6 @@ function App() {
     setToast('Module added');
   };
 
-  const importPlan = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const imported = JSON.parse(String(reader.result)) as StudyPlan;
-        if (!imported || !Array.isArray(imported.modules) || !Array.isArray(imported.dependencies)) throw new Error('Invalid plan');
-        setPlan(imported);
-        setSelectedId(imported.modules[0]?.id ?? null);
-        setToast('Plan imported');
-      } catch {
-        setToast('That file is not a valid Studyplanner JSON backup');
-      }
-      event.target.value = '';
-    };
-    reader.readAsText(file);
-  };
-
   return (
     <div className={'app-shell ' + (darkMode ? 'dark-mode' : 'light-mode')}>
       <header className="topbar">
@@ -250,8 +232,7 @@ function App() {
         <div className="topbar-actions">
           <button className="button button-quiet theme-toggle" onClick={() => setDarkMode((current) => !current)} aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}<span>{darkMode ? 'Light mode' : 'Dark mode'}</span></button>
           <button className="button button-quiet" onClick={() => downloadJson(plan)}><ArrowDownToLine size={16} /> Export</button>
-          <button className="button button-quiet" onClick={() => importRef.current?.click()}><ArrowUpFromLine size={16} /> Import</button>
-          <input ref={importRef} type="file" accept=".json,application/json" hidden onChange={importPlan} />
+          <button className="button button-quiet" onClick={() => setShowImport(true)}><ArrowUpFromLine size={16} /> Import</button>
           <button className="avatar-button" title="Local workspace"><span>O</span></button>
         </div>
       </header>
@@ -297,6 +278,7 @@ function App() {
         <section className="semester-planning" aria-label="Semester workload">
           <div className="semester-planning-heading"><div><div className="eyebrow"><CalendarDays size={14} /> YOUR PLAN AT A GLANCE</div><h2>Semester workload</h2><p>ECTS are based on the semester assigned to each course. Change a course’s semester to try a different plan.</p></div><div className="grade-average"><Award size={19} /><span><small>Grade average</small><strong>{gradeAverage}</strong><em>{gradedModules.length ? `ECTS-weighted · ${gradeWeight} ECTS graded` : 'Add grades to calculate'}</em></span></div></div>
           <div className="semester-grid">{semesterTotals.map(({ semester, modules, ects, completed }) => <button key={semester} className={'semester-card ' + (modules.length ? '' : 'semester-empty')} onClick={() => { setSemesterFilter(String(semester)); document.querySelector('.planner-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><span className="semester-card-top"><strong>Semester {semester}</strong><span>{modules.length} {modules.length === 1 ? 'course' : 'courses'}</span></span><span className="semester-ects">{ects}<small> ECTS planned</small></span><span className="semester-progress"><i style={{ width: ects ? `${Math.min(100, completed / ects * 100)}%` : '0%' }} /></span><span className="semester-card-foot">{completed} of {ects} ECTS passed</span></button>)}</div>
+          {(plan.requirementGroups ?? []).length > 0 && <div className="choice-groups-summary"><div><h3>Elective requirements</h3><p>Only options marked as planned count toward your workload.</p></div>{(plan.requirementGroups ?? []).map((group) => { const options = plan.modules.filter((module) => group.moduleIds.includes(module.id)); const chosen = options.filter((module) => (group.selectedModuleIds ?? []).includes(module.id)); const chosenEcts = chosen.reduce((sum, module) => sum + module.ects, 0); const ruleText = group.rule === 'min-ects' ? `At least ${group.target} ECTS` : group.rule === 'max-ects' ? `At most ${group.target} ECTS` : group.rule === 'exact-ects' ? `Exactly ${group.target} ECTS` : group.rule === 'module-count' ? `Choose ${group.target} modules` : `Choose from ${group.target} areas`; return <div className="choice-group-summary" key={group.id}><div><strong>{group.title}</strong><small>{ruleText}</small></div><span>{chosenEcts} ECTS planned</span><small>{chosen.length} of {options.length} options selected</small></div>; })}</div>}
         </section>
 
         <section className="planner-section">
@@ -406,6 +388,7 @@ function App() {
         <footer><span>STUDYPLANNER <span className="footer-dot">•</span> A BETTER WAY THROUGH YOUR DEGREE</span><span>Made for curious minds.</span></footer>
       </main>
 
+      {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(imported); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); setToast('Study plan imported'); }} />}
       {showAdd && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><form className="add-modal" onSubmit={addModule}>
         <div className="modal-heading"><div><div className="eyebrow">MAKE IT YOURS</div><h2>Add a module</h2><p>Add a course to your plan. You can edit its details later.</p></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
         <label className="form-label">Module name<input autoFocus required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="e.g. Applied Statistics" /></label>

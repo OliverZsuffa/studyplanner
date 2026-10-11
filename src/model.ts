@@ -1,5 +1,16 @@
 export type ModuleStatus = 'not-started' | 'in-progress' | 'completed';
 export type DependencyKind = 'required' | 'recommended';
+export type RequirementRule = 'min-ects' | 'max-ects' | 'exact-ects' | 'module-count' | 'one-from-each';
+
+export interface RequirementGroup {
+  id: string;
+  title: string;
+  rule: RequirementRule;
+  target: number;
+  moduleIds: string[];
+  selectedModuleIds?: string[];
+  sourceNote?: string;
+}
 
 export interface StudyModule {
   id: string;
@@ -20,7 +31,8 @@ export interface Dependency {
   target: string;
   kind: DependencyKind;
   note?: string;
-  provenance: 'official' | 'user' | 'illustrative';
+  provenance: 'official' | 'user' | 'illustrative' | 'ai-suggested';
+  relationshipConfidence?: 'formal' | 'recommended' | 'uncertain';
 }
 
 export interface StudyPlan {
@@ -28,6 +40,7 @@ export interface StudyPlan {
   institution: string;
   modules: StudyModule[];
   dependencies: Dependency[];
+  requirementGroups?: RequirementGroup[];
 }
 
 export const statusLabels: Record<ModuleStatus, string> = {
@@ -51,10 +64,16 @@ export function getAvailableModules(plan: StudyPlan): Set<string> {
   );
 }
 
+export function isModuleCountedInPlan(plan: StudyPlan, moduleId: string): boolean {
+  const groups = (plan.requirementGroups ?? []).filter((group) => group.moduleIds.includes(moduleId));
+  return groups.length === 0 || groups.some((group) => group.selectedModuleIds?.includes(moduleId));
+}
+
 export function getProgress(plan: StudyPlan) {
-  const completed = plan.modules.filter((module) => module.status === 'completed').length;
-  const totalEcts = plan.modules.reduce((sum, module) => sum + module.ects, 0);
-  const completedEcts = plan.modules
+  const counted = plan.modules.filter((module) => isModuleCountedInPlan(plan, module.id));
+  const completed = counted.filter((module) => module.status === 'completed').length;
+  const totalEcts = counted.reduce((sum, module) => sum + module.ects, 0);
+  const completedEcts = counted
     .filter((module) => module.result === 'passed')
     .reduce((sum, module) => sum + module.ects, 0);
   return {
