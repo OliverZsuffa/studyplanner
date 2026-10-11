@@ -80,13 +80,6 @@ export default function ImportWizard({ currentPlan, onApply, onClose }: Props) {
   };
   const updateModule = (id: string, patch: Partial<StudyModule>) => setModules((list) => list.map((m) => m.id === id ? { ...m, ...patch } : m));
   const removeModule = (id: string) => { setModules((list) => list.filter((m) => m.id !== id)); setGroups((list) => list.map((g) => ({ ...g, moduleIds: g.moduleIds.filter((x) => x !== id) }))); };
-  const buildPrompt = () => {
-    const clean = modules.filter((m) => m.title.trim());
-    if (!clean.length) { setNotice('Add at least one module title first.'); return; }
-    setModules(clean);
-    setPrompt(makePrerequisitePrompt({ name: programme || 'Study programme', institution: institution || 'Not specified', modules: clean, requirementGroups: groups }));
-    setStage('ai');
-  };
   const parseAi = () => {
     const result = parseAiRelationships(aiText, modules);
     setRelations(result.relationships); setErrors(result.errors); setSelectedRelations(new Set());
