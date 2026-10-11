@@ -22,6 +22,8 @@ import {
 import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester } from './model';
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
+import SchedulingPanel from './SchedulingPanel';
+import { availabilityConflict, getTermForSemester, getTermLabel } from './model';
 
 const STORAGE_KEY = 'studyplanner.plan.v1';
 
@@ -105,7 +107,7 @@ function makeGraph(plan: StudyPlan, nextStepIds: Set<string>, selectedId: string
     source: dependency.source,
     target: dependency.target,
     type: 'smoothstep',
-    animated: dependency.kind === 'required',
+    animated: false,
     label: dependency.kind === 'required' ? 'Required' : 'Recommended',
     labelStyle: { fontSize: 10, fontWeight: 600, fill: dependency.kind === 'required' ? '#6b55b5' : '#748276' },
     labelBgStyle: { fill: '#ffffff', fillOpacity: 0.94 },
@@ -136,7 +138,7 @@ function App() {
   const [query, setQuery] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [view, setView] = useState<'kanban' | 'graph' | 'list'>('kanban');
+  const [view, setView] = useState<'kanban' | 'graph' | 'list' | 'schedule'>('kanban');
   const [showAdd, setShowAdd] = useState(false);
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [newCode, setNewCode] = useState('CUSTOM');
@@ -280,6 +282,11 @@ function App() {
   };
 
   const moveModule = (id: string, semester: number | null) => {
+    const module = plan.modules.find((item) => item.id === id);
+    const term = semester === null ? null : getTermForSemester(plan.startingTerm, semester);
+    if (module && semester !== null && module.availability && module.availability !== 'both' && !term) { setToast('Set your starting semester and year in Schedule before assigning a winter-only or summer-only course.'); return; }
+    const conflict = module && semester !== null ? availabilityConflict(module, term) : null;
+    if (conflict) { setToast(conflict); return; }
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? withPlannedSemester(module, semester) : module) }));
     setToast(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
   };
@@ -388,12 +395,13 @@ function App() {
             <div>
               <div className="eyebrow section-eyebrow">THE BIG PICTURE</div>
               <h2>Your study map</h2>
-              <p>{view === 'kanban' ? 'Move courses between semester columns. Select a course to update its progress and exam results.' : view === 'graph' ? 'Explore course relationships. Solid lines mean required prerequisites; dashed lines mean recommended preparation.' : 'Search and scan courses in a compact list. Select any course to edit its details.'}</p>
+              <p>{view === 'schedule' ? 'Set course availability, enter teaching sessions and exams, resolve timetable conflicts, and manage dependency connections.' : view === 'kanban' ? 'Move courses between semester columns. Select a course to update its progress and exam results.' : view === 'graph' ? 'Explore course relationships. Solid lines mean required prerequisites; dashed lines mean recommended preparation.' : 'Search and scan courses in a compact list. Select any course to edit its details.'}</p>
             </div>
             <div className="view-toggle" aria-label="Choose view">
               <button className={view === 'kanban' ? 'active' : ''} onClick={() => setView('kanban')}><Columns3 size={15} /> Plan</button>
               <button className={view === 'graph' ? 'active' : ''} onClick={() => setView('graph')}><LayoutGrid size={15} /> Map</button>
               <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><List size={15} /> List</button>
+              <button className={view === 'schedule' ? 'active' : ''} onClick={() => setView('schedule')}><CalendarDays size={15} /> Schedule</button>
             </div>
           </div>
 
@@ -407,11 +415,11 @@ function App() {
             <button className="button button-primary" onClick={openAddModule}><Plus size={16} /> Add course</button>
           </div>
 
-          <div className={'planner-layout ' + (view === 'list' ? 'list-mode' : '') + (view === 'kanban' ? ' kanban-mode' : '')}>
+          <div className={'planner-layout ' + (view === 'list' ? 'list-mode' : '') + (view === 'kanban' ? ' kanban-mode' : '') + (view === 'schedule' ? ' schedule-mode' : '')}>
             <div className="graph-panel">
-              {view === 'kanban' ? (
+              {view === 'schedule' ? <SchedulingPanel plan={plan} setPlan={setPlan} onSelectModule={(id) => { setSelectedId(id); setView('kanban'); }} /> : view === 'kanban' ? (
                 <div className="kanban-board" aria-label="Semester planning board">
-                  {[...semesters.map((semester) => ({ semester, title: `Semester ${semester}` })), { semester: null as number | null, title: 'Unplanned' }].map((column) => {
+                  {[...semesters.map((semester) => ({ semester, title: plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm, semester))}` : `Semester ${semester}` })), { semester: null as number | null, title: 'Unplanned' }].map((column) => {
                     const columnModules = filteredModules.filter((module) => getPlannedSemester(module) === column.semester);
                     const total = columnModules.filter((module) => isModuleCountedInPlan(plan, module.id)).reduce((sum, module) => sum + module.ects, 0);
                     return <section className="kanban-column" key={column.title} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/studyplanner-module'); if (id) moveModule(id, column.semester); }} aria-label={column.title}>
@@ -421,7 +429,7 @@ function App() {
                           <div className="kanban-card-top"><span>{module.code}</span><button className="kanban-edit" aria-label={`Edit ${module.title}`} onClick={(event) => { event.stopPropagation(); openEditModule(module); }}><Pencil size={13} /></button></div>
                           <strong>{module.title}</strong><p>{module.category} · {module.ects} ECTS</p>
                           <div className="kanban-card-footer"><span className={'status-pill ' + module.status}>{statusLabels[module.status]}</span>{module.recommendation && module.recommendation !== 'not-reviewed' ? <span className={'recommendation-pill ' + module.recommendation}>{module.recommendation === 'strongly-recommended' ? 'Strongly recommended' : 'Recommended'}</span> : null}{module.recommendedSemester && <small>Official S{module.recommendedSemester}</small>}</div>
-                          <label className="kanban-move" onClick={(event) => event.stopPropagation()}>Move to<select aria-label={`Move ${module.title} to semester`} value={getPlannedSemester(module) ?? ''} onChange={(event) => moveModule(module.id, event.target.value === '' ? null : Number(event.target.value))}><option value="">Unplanned</option>{semesters.map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}<option value={Math.max(...semesters) + 1}>Semester {Math.max(...semesters) + 1}</option></select></label>
+                          <label className="kanban-move" onClick={(event) => event.stopPropagation()}>Move to<select aria-label={`Move ${module.title} to semester`} value={getPlannedSemester(module) ?? ''} onChange={(event) => moveModule(module.id, event.target.value === '' ? null : Number(event.target.value))}><option value="">Unplanned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm, semester))}` : `Semester ${semester}`}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? `S${Math.max(...semesters) + 1} · ${getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters) + 1))}` : `Semester ${Math.max(...semesters) + 1}`}</option></select></label>
                         </article>)}
                         {columnModules.length === 0 && <div className="kanban-empty">Drop a module here or use its “Move to” menu.</div>}
                       </div>
@@ -475,7 +483,7 @@ function App() {
                   <div className="detail-badges"><span className="ects-badge">{selected.ects} ECTS</span><span className={'status-pill ' + selected.status}>{statusLabels[selected.status]}</span>{selected.recommendation && selected.recommendation !== 'not-reviewed' ? <span className={'recommendation-pill ' + selected.recommendation}>{selected.recommendation === 'strongly-recommended' ? 'Strongly recommended' : 'Recommended'}</span> : null}</div>
                   <details className="detail-advanced"><summary>Optional planning guidance <span>{selected.recommendation === 'strongly-recommended' ? 'Strongly recommended' : selected.recommendation === 'recommended' ? 'Recommended' : 'No recommendation set'}</span></summary><p>This is your own optional rating of how useful a course seems. It is not an official assessment and does not change progress, semester, or ECTS.</p><label className="field-label" htmlFor="module-recommendation">Course recommendation</label><select id="module-recommendation" className="status-select detail-field-gap" value={selected.recommendation ?? 'not-reviewed'} onChange={(event) => changeRecommendation(selected.id, event.target.value as ModuleRecommendation)}><option value="not-reviewed">No recommendation set</option><option value="recommended">Recommended</option><option value="strongly-recommended">Strongly recommended</option></select></details>
                   <label className="field-label" htmlFor="planned-semester">WHEN DO YOU PLAN TO TAKE IT?</label>
-                  <select id="planned-semester" className="status-select detail-field-gap" value={getPlannedSemester(selected) ?? ''} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: event.target.value === '' ? undefined : Number(event.target.value), plannedSemester: event.target.value === '' ? null : Number(event.target.value) } : module) }))}><option value="">Not planned</option>{semesters.map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}<option value={Math.max(...semesters) + 1}>Semester {Math.max(...semesters) + 1}</option></select>
+                  <select id="planned-semester" className="status-select detail-field-gap" value={getPlannedSemester(selected) ?? ''} onChange={(event) => { const next = event.target.value === '' ? null : Number(event.target.value); const mapped = next === null ? null : getTermForSemester(plan.startingTerm, next); if (next !== null && selected.availability && selected.availability !== 'both' && !mapped) { setToast('Set your starting semester and year in Schedule before assigning a winter-only or summer-only course.'); return; } const problem = next === null ? null : availabilityConflict(selected, mapped); if (problem) { setToast(problem); return; } setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: next ?? undefined, plannedSemester: next } : module) })); }}><option value="">Not planned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? 'S'+semester+' · '+getTermLabel(getTermForSemester(plan.startingTerm, semester)) : 'Semester '+semester}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? 'S'+(Math.max(...semesters)+1)+' · '+getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters)+1)) : 'Semester '+(Math.max(...semesters)+1)}</option></select>
                   <details className="detail-advanced"><summary>Official source information</summary><p>Official study-plan semester: {selected.recommendedSemester ? `Semester ${selected.recommendedSemester}` : 'Not known'}{selected.sourceLocation ? ` · ${selected.sourceLocation}` : ''}</p>{selected.sourceEvidence && <p><strong>Source evidence</strong><br />{selected.sourceEvidence}</p>}{selected.sourceLocation && /^https?:\/\//i.test(selected.sourceLocation) && <p><a href={selected.sourceLocation} target="_blank" rel="noreferrer">Open source ↗</a></p>}</details>
                   {selected.description && <p className="detail-description">{selected.description}</p>}
                   {(plan.requirementGroups ?? []).length > 0 && <details className="detail-advanced"><summary>Elective / choice groups <span>{getModuleRequirementGroups(plan, selected.id).length ? 'Linked' : 'Not linked'}</span></summary><p>Tick a group to add this course as one of its options. Then choose whether you plan to take it.</p>{(plan.requirementGroups ?? []).map((group) => { const linked = group.moduleIds.includes(selected.id); const chosen = (group.selectedModuleIds ?? []).includes(selected.id); return <div className="module-group-link" key={group.id}><label><input type="checkbox" checked={linked} onChange={(event) => { const checked = event.target.checked; setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((item) => item.id === group.id ? { ...item, moduleIds: checked ? [...item.moduleIds, selected.id] : item.moduleIds.filter((id) => id !== selected.id), selectedModuleIds: checked ? (item.selectedModuleIds ?? []) : (item.selectedModuleIds ?? []).filter((id) => id !== selected.id) } : item) })); }} />{group.title}</label>{linked && <label className="module-group-choice"><input type="checkbox" checked={chosen} onChange={(event) => { if (event.target.checked) { const check = canSelectRequirementOption(plan, group.id, selected.id); if (!check.allowed) { setToast(check.reason ?? 'This course cannot be selected yet'); return; } } toggleRequirementOption(group.id, selected.id); }} />Plan to take</label>}</div>; })}</details>}

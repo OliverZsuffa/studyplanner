@@ -90,3 +90,14 @@ The prototype includes a semester Kanban with drag-and-drop plus an accessible s
 - Elective help now explains the exact path for adding a missing course; recommendation states are not shown as “Not reviewed” noise in elective options, Kanban cards, or list rows.
 - Renamed “Add module” to “Add course” and clarified the progress and planned-semester labels. No existing planning, import/export, dependency, or grading capabilities were removed.
 - Check Request 008's GitHub Actions build/test and deployment status before claiming it is live.
+
+
+## Scheduling workspace (Request 009)
+
+- The plan model now stores a global starting term, per-course availability, teaching components, alternative weekly slots, per-slot online availability, and multiple exams. Older plans migrate to availability “both”, empty component/exam lists, and no starting term; this does not invent dates.
+- Planned-semester labels can be mapped to winter/summer terms from the configured starting term. A course offered only in the opposite season is blocked from new assignments through the Kanban move selector, course details, and scheduling editor. Existing incompatible placements are surfaced for review rather than silently moved.
+- The Schedule workspace contains course session editing, a semester timetable, a month/list calendar, and dependency management. Components have explicit teaching date ranges and a fixed type list. The calendar creates weekly events only for the chosen alternative inside that date range, and separately marks component start/end dates and explicit exam dates.
+- Timetable alternative changes are validated against other selected sessions in the same planned semester, including shared weekdays in overlapping date ranges. The editor refuses a clash and explains which sessions overlap. Alternative selection is also available as a normal select control rather than requiring drag-and-drop.
+- Dependency management supports creating, editing, and deleting directed hard/soft connections. Hard connections are purple solid edges; soft connections are dotted. Manually entered hard dependencies are marked uncertain unless supported with evidence.
+- JSON export serializes the full plan object, so these new fields travel with the existing progress, grades, elective choices, recommendations and dependencies. JSON import passes through the shared migration function.
+- Request 009's scheduling helper tests cover semester mapping, seasonal availability, legacy migration defaults, time/date overlap, schedule conflicts, and teaching/exam calendar events. GitHub Actions run [#88](https://github.com/OliverZsuffa/studyplanner/actions/runs/38174710899) passed the TypeScript check/production build, unit tests, and Pages artifact upload. Post-merge Pages deployment and a live browser smoke test still need verification.
