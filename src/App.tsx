@@ -35,7 +35,7 @@ function readSavedPlan(): StudyPlan {
   } catch {
     // Fall back to the sample if local data is invalid.
   }
-  return samplePlan;
+  return migrateStudyPlan(samplePlan);
 }
 
 type ModuleNodeData = {
