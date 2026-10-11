@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makePrerequisitePrompt, parseAiRelationships, parseCurriculumText, toDependency } from './curriculumImport';
+import { makeCurriculumExtractionPrompt, makePrerequisitePrompt, parseAiCurriculum, parseAiRelationships, parseCurriculumText, toDependency } from './curriculumImport';
 import type { StudyModule } from './model';
 
 const modules: StudyModule[] = [
@@ -11,8 +11,14 @@ describe('curriculum text parser', () => {
   it('extracts module title, code and ECTS without inventing the semester', () => {
     const result = parseCurriculumText('CS101 Algorithms and Data Structures — 6 ECTS\nCS201 Database Systems 5 ECTS');
     expect(result.modules).toHaveLength(2);
-    expect(result.modules[0]).toMatchObject({ code: 'CS101', title: 'Algorithms and Data Structures', ects: 6, semester: 1 });
+    expect(result.modules[0]).toMatchObject({ code: 'CS101', title: 'Algorithms and Data Structures', ects: 6, plannedSemester: null, recommendedSemester: null });
     expect(result.modules[1]).toMatchObject({ code: 'CS201', title: 'Database Systems', ects: 5 });
+  });
+
+  it('does not assign a semester when local parsing cannot identify one', () => {
+    const result = parseCurriculumText('CS101 Algorithms 5 ECTS');
+    expect(result.modules[0].plannedSemester).toBeNull();
+    expect(result.modules[0].recommendedSemester).toBeNull();
   });
 
   it('flags text when no confident ECTS-based module line is found', () => {
@@ -24,6 +30,52 @@ describe('curriculum text parser', () => {
   it('avoids duplicate module candidates', () => {
     const result = parseCurriculumText('CS101 Algorithms 5 ECTS\nCS101 Algorithms 5 ECTS');
     expect(result.modules).toHaveLength(1);
+  });
+});
+
+describe('AI curriculum extraction validation', () => {
+  it('accepts official semester, ECTS and source evidence while preserving unknown fields', () => {
+    const result = parseAiCurriculum(JSON.stringify({
+      schema: 'studyplanner-curriculum/v1',
+      programme: 'Test degree',
+      institution: 'Test university',
+      modules: [
+        { code: 'CS101', title: 'Algorithms', ects: 6, recommendedSemester: 1, sourceEvidence: 'Semester 1', sourceLocation: 'Table 1' },
+        { code: null, title: 'Unknown course', ects: null, recommendedSemester: null },
+      ],
+      requirementGroups: [],
+      warnings: [],
+    }));
+    expect(result.errors).toEqual([]);
+    expect(result.draft?.modules[0]).toMatchObject({ code: 'CS101', ects: 6, recommendedSemester: 1, sourceEvidence: 'Semester 1' });
+    expect(result.draft?.modules[1]).toMatchObject({ code: null, ects: null, recommendedSemester: null });
+  });
+
+  it('rejects invalid semesters and malformed module data', () => {
+    const result = parseAiCurriculum(JSON.stringify({
+      schema: 'studyplanner-curriculum/v1',
+      modules: [{ title: 'Bad semester', ects: 5, recommendedSemester: 0 }],
+      requirementGroups: [],
+    }));
+    expect(result.draft).toBeNull();
+    expect(result.errors.join(' ')).toContain('recommendedSemester');
+  });
+
+  it('validates choice groups and retains only known module codes', () => {
+    const result = parseAiCurriculum(JSON.stringify({
+      schema: 'studyplanner-curriculum/v1',
+      modules: [{ code: 'A', title: 'Course A', ects: 5, recommendedSemester: 1 }],
+      requirementGroups: [{ title: 'Electives', rule: 'min-ects', target: 5, moduleCodes: ['A', 'MISSING'] }],
+    }));
+    expect(result.draft?.requirementGroups[0].moduleCodes).toEqual(['A']);
+    expect(result.errors[0]).toContain('unknown module codes');
+  });
+
+  it('generates a provider-neutral extraction prompt with unknown-field and alternatives rules', () => {
+    const prompt = makeCurriculumExtractionPrompt();
+    expect(prompt).toContain('studyplanner-curriculum/v1');
+    expect(prompt).toContain('otherwise null');
+    expect(prompt).toContain('Keep alternative modules as alternatives');
   });
 });
 
