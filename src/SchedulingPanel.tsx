@@ -29,6 +29,16 @@ export default function SchedulingPanel({ plan, setPlan, onSelectModule }: Props
   const events = useMemo(() => getCalendarEvents(plan), [plan]);
   const updateModule = (id: string, change: Partial<StudyModule>) => setPlan(current => ({...current, modules: current.modules.map(m => m.id === id ? {...m, ...change} : m)}));
   const updateComponent = (module: StudyModule, component: CourseComponent) => updateModule(module.id, {components: (module.components ?? []).map(c => c.id === component.id ? component : c)});
+  const updateSlot = (module: StudyModule, component: CourseComponent, slotId: string, change: Partial<TimeSlotAlternative>) => {
+    const nextComponent = {...component, alternatives: component.alternatives.map(slot => slot.id === slotId ? {...slot, ...change} : slot)};
+    const nextPlan = {...plan, modules: plan.modules.map(item => item.id !== module.id ? item : {...item, components: (item.components ?? []).map(c => c.id === component.id ? nextComponent : c)})};
+    const semesterNumber = getPlannedSemester(module);
+    if (component.selectedAlternativeId === slotId && semesterNumber !== null) {
+      const conflict = findScheduleConflict(nextPlan, semesterNumber, module.id, component.id, slotId);
+      if (conflict) { setNotice(`Impossible: this edit overlaps ${conflict.module.title}, ${conflict.component.name || conflict.component.type} (${conflict.slot.startTime}–${conflict.slot.endTime}). The change was not saved.`); return; }
+    }
+    setPlan(nextPlan);
+  };
   const addComponent = (module: StudyModule) => {
     const component = componentDrafts[module.id] ?? emptyComponent();
     if (component.startDate && component.endDate && component.endDate < component.startDate) { setNotice('The teaching end date must be on or after the start date.'); return; }
