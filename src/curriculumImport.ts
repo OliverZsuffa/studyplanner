@@ -124,6 +124,7 @@ export function parseAiRelationships(raw: string, modules: StudyModule[]): { rel
     if (row.source === row.target) { errors.push(`Relationship ${index + 1}: a module cannot depend on itself.`); continue; }
     if (!['formal', 'recommended', 'uncertain'].includes(String(row.kind))) { errors.push(`Relationship ${index + 1}: unknown relationship kind.`); continue; }
     if (typeof row.rationale !== 'string' || !row.rationale.trim()) { errors.push(`Relationship ${index + 1}: missing rationale.`); continue; }
+    if (row.kind === 'formal' && !(typeof row.evidence === 'string' && row.evidence.trim()) && !(typeof row.url === 'string' && /^https?:\\/\\//i.test(row.url))) { errors.push(`Relationship ${index + 1}: a formal prerequisite needs evidence or an official source URL.`); continue; }
     const key = `${row.source}->${row.target}`;
     if (seen.has(key)) { errors.push(`Relationship ${index + 1}: duplicate relationship ignored.`); continue; }
     seen.add(key);
