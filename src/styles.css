@@ -410,3 +410,10 @@ footer > span:last-child { letter-spacing: 0; }
   .elective-options { grid-template-columns: minmax(0, 1fr); }
   .elective-group-heading { align-items: flex-start; flex-direction: column; }
 }
+
+.planning-warnings { margin: 14px 0 0; padding: 13px 15px; border: 1px solid #f0d49a; border-radius: 10px; color: #784b08; background: #fffbeb; }
+.planning-warnings > strong { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.planning-warnings ul { margin: 8px 0; padding-left: 22px; font-size: 11px; line-height: 1.6; }
+.planning-warnings small { color: #8a6b37; font-size: 10px; }
+.dark-mode .planning-warnings { border-color: #854d0e; color: #fde68a; background: #422006; }
+.dark-mode .planning-warnings small { color: #fcd34d; }
