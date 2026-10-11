@@ -202,6 +202,15 @@ The website itself does not verify that citations are real or that the AI's conc
 - Formal prerequisites and recommended prior knowledge remain different relationship types with separate provenance.
 - Malformed JSON, missing fields, invented module IDs, and unsupported official claims are flagged rather than silently accepted.
 
-## Status
+## Implementation status
 
-Planning only. No import implementation has been made in this request yet.
+Implemented on branch `feature/curriculum-import-ai-prompt` for review:
+
+- Local selectable-text PDF extraction using PDF.js, plain-text parsing, and a manual module editor.
+- Choice groups are stored separately from modules, and possible options do not count toward planned ECTS until selected.
+- Provider-neutral AI prompt generation and validated JSON response import.
+- AI relationship suggestions are unchecked by default and require explicit selection. Formal prerequisites are separate from recommendations and retain AI provenance, rationale, and any supplied evidence/URL.
+- Add/replace confirmation and JSON backup restore remain available.
+- Unit tests cover parser candidates, prompt requirements, invalid AI output, relationship IDs, and elective ECTS accounting.
+
+Limitations to verify during review: the parser is heuristic and may miss or misread unusual layouts; scanned PDFs/OCR and arbitrary URL scraping are not supported. AI source claims are not independently verified by the app. Build/test status must be confirmed by CI before merging.
