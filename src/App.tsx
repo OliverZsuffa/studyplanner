@@ -219,6 +219,7 @@ function App() {
     const selected = currentGroup.selectedModuleIds ?? [];
     if (selected.includes(moduleId)) {
       setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((group) => group.id === groupId ? { ...group, selectedModuleIds: (group.selectedModuleIds ?? []).filter((id) => id !== moduleId) } : group) }));
+      if (selectedId === moduleId) setSelectedId(null);
       setToast('Option removed from selection');
       return;
     }
