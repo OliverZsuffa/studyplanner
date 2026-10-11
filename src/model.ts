@@ -8,6 +8,7 @@ export interface RequirementGroup {
   rule: RequirementRule;
   target: number;
   moduleIds: string[];
+  selectedModuleIds?: string[];
   sourceNote?: string;
 }
 
@@ -63,10 +64,16 @@ export function getAvailableModules(plan: StudyPlan): Set<string> {
   );
 }
 
+export function isModuleCountedInPlan(plan: StudyPlan, moduleId: string): boolean {
+  const groups = (plan.requirementGroups ?? []).filter((group) => group.moduleIds.includes(moduleId));
+  return groups.length === 0 || groups.some((group) => group.selectedModuleIds?.includes(moduleId));
+}
+
 export function getProgress(plan: StudyPlan) {
-  const completed = plan.modules.filter((module) => module.status === 'completed').length;
-  const totalEcts = plan.modules.reduce((sum, module) => sum + module.ects, 0);
-  const completedEcts = plan.modules
+  const counted = plan.modules.filter((module) => isModuleCountedInPlan(plan, module.id));
+  const completed = counted.filter((module) => module.status === 'completed').length;
+  const totalEcts = counted.reduce((sum, module) => sum + module.ects, 0);
+  const completedEcts = counted
     .filter((module) => module.result === 'passed')
     .reduce((sum, module) => sum + module.ects, 0);
   return {
