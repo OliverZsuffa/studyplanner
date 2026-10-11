@@ -55,3 +55,19 @@ Students receive study regulations, module catalogues, PDFs, and semester recomm
 - Request 001: validate the product direction and refine the graph/availability semantics with the user.
 - Request 002: import and review a real study plan.
 - Request 003: add AI-assisted dependency suggestions with provenance and confidence.
+
+## Implementation outcome
+
+Initial implementation committed to main:
+- Responsive dashboard and interactive React Flow map with a list alternative.
+- Module status editing, progress/ECTS summary, filters, search, add-module flow, local persistence, and JSON import/export.
+- Required and recommended relationship styles are distinct. The sample uses illustrative recommended relationships only, so it does not invent official prerequisites.
+- Unit tests cover availability semantics and progress calculations.
+- GitHub Actions workflow builds, tests, and deploys to Pages. The workflow has not yet been verified as successful at the time of this update.
+- The initial Pages URL is https://oliverzsuffa.github.io/studyplanner/. If automated Pages enablement is rejected by GitHub, enable Settings → Pages → Build and deployment → GitHub Actions manually.
+
+## Known limitations
+- The example curriculum is illustrative and should not be used as an official study plan.
+- Module import currently supports Studyplanner JSON backups, not university URLs or PDFs.
+- Recommended links can be created by dragging between node handles. Formal required links should only be added when their source is verified.
+- Browser persistence is device/browser-local and does not sync between devices.
