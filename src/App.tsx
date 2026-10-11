@@ -16,12 +16,13 @@ import {
 } from '@xyflow/react';
 import {
   ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CheckCircle2, ChevronDown,
-  CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List,
+  CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List, ClipboardPaste,
   Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award, Columns3, Pencil, ArrowRight, Route,
 } from 'lucide-react';
 import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester } from './model';
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
+import QuickAddWizard from './QuickAddWizard';
 import SchedulingPanel from './SchedulingPanel';
 import { availabilityConflict, getTermForSemester, getTermLabel } from './model';
 
@@ -153,6 +154,7 @@ function App() {
   const [newCategory, setNewCategory] = useState('Core');
   const [newDependency, setNewDependency] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const [tourOpen, setTourOpen] = useState(() => { try { return localStorage.getItem('studyplanner.tour-seen') !== 'true'; } catch { return false; } });
   const [tourStep, setTourStep] = useState(0);
@@ -199,6 +201,23 @@ function App() {
   useEffect(() => {
     try { localStorage.setItem('studyplanner.theme', darkMode ? 'dark' : 'light'); } catch { /* storage may be unavailable */ }
   }, [darkMode]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        document.querySelector<HTMLInputElement>('.search-box input')?.focus();
+      }
+      if (event.key === 'Escape') {
+        if (showQuickAdd) setShowQuickAdd(false);
+        else if (showImport) setShowImport(false);
+        else if (showAdd) setShowAdd(false);
+        else if (tourOpen) finishTour();
+      }
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, [showQuickAdd, showImport, showAdd, tourOpen]);
 
   const finishTour = () => {
     setTourOpen(false);
@@ -412,7 +431,8 @@ function App() {
             <div className="filter-control"><Filter size={15} /><select value={semesterFilter} onChange={(event) => setSemesterFilter(event.target.value)} aria-label="Filter by semester"><option value="all">All semesters</option><option value="unplanned">Unplanned</option>{[...new Set(plan.modules.map((module) => (getPlannedSemester(module) ?? 0)))].filter((semester) => semester > 0).sort((a, b) => a - b).map((semester) => <option key={semester} value={String(semester)}>Semester {semester}</option>)}</select></div>
             <div className="filter-control"><Clock3 size={15} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter by status"><option value="all">All statuses</option><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option></select></div>
             <div className="toolbar-spacer" />
-            <button className="button button-primary" onClick={openAddModule}><Plus size={16} /> Add course</button>
+            <button className="button button-quiet quick-add-trigger" onClick={() => setShowQuickAdd(true)}><ClipboardPaste size={16} /> <span>Quick add many</span></button>
+            <button className="button button-primary" onClick={openAddModule}><Plus size={16} /> Add one</button>
           </div>
 
           <div className={'planner-layout ' + (view === 'list' ? 'list-mode' : '') + (view === 'kanban' ? ' kanban-mode' : '') + (view === 'schedule' ? ' schedule-mode' : '')}>
@@ -525,6 +545,7 @@ function App() {
       </main>
 
       {tourOpen && <div className="tour-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) finishTour(); }}><section className="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title"><div className="tour-dialog-top"><span className="tour-icon"><Route size={20} /></span><button type="button" className="icon-button" aria-label="Close guided tour" onClick={finishTour}><X size={17} /></button></div><div className="tour-eyebrow">{tourSteps[tourStep].eyebrow}</div><h2 id="tour-title">{tourSteps[tourStep].title}</h2><p>{tourSteps[tourStep].body}</p><div className="tour-tip"><Sparkles size={15} /><span>{tourSteps[tourStep].tip}</span></div><div className="tour-progress" aria-label={`Step ${tourStep + 1} of ${tourSteps.length}`}>{tourSteps.map((step, index) => <span key={step.eyebrow} className={index <= tourStep ? 'active' : ''} />)}</div><div className="tour-actions"><button type="button" className="button button-quiet" onClick={finishTour}>Skip tour</button><div>{tourStep > 0 && <button type="button" className="button button-quiet" onClick={() => setTourStep((step) => step - 1)}>Back</button>}<button type="button" className="button button-primary" onClick={() => tourStep === tourSteps.length - 1 ? finishTour() : setTourStep((step) => step + 1)}>{tourStep === tourSteps.length - 1 ? 'Start planning' : 'Next'} <ArrowRight size={15} /></button></div></div></section></div>}
+      {showQuickAdd && <QuickAddWizard currentPlan={plan} onClose={() => setShowQuickAdd(false)} onApply={(modules) => { setPlan((current) => ({ ...current, modules: [...current.modules, ...modules] })); setSelectedId(modules[0]?.id ?? selectedId); setShowQuickAdd(false); setToast(`Added ${modules.length} ${modules.length === 1 ? 'course' : 'courses'}`); }} />}
       {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(migrateStudyPlan(imported)); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); setToast('Study plan imported'); }} />}
       {showAdd && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><form className="add-modal" onSubmit={addModule}>
         <div className="modal-heading"><div><div className="eyebrow">YOUR STUDY PLAN</div><h2>{editingModuleId ? 'Edit module' : 'Add a module'}</h2><p>Keep course details and planning information together.</p></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
