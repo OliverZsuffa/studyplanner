@@ -98,7 +98,7 @@ export function migrateStudyPlan(value: StudyPlan): StudyPlan {
 export function getTermForSemester(start: StudyTerm | null | undefined, semester: number): StudyTerm | null {
   if (!start || !Number.isInteger(semester) || semester < 1 || !Number.isInteger(start.year) || start.year < 1900) return null;
   const index = (start.season === 'winter' ? 0 : 1) + semester - 1;
-  return { season: index % 2 === 0 ? 'winter' : 'summer', year: start.year + Math.floor(index / 2) };
+  return { season: index % 2 === 0 ? 'winter' : 'summer', year: start.year + Math.floor(((start.season === 'winter' ? 1 : 0) + semester - 1) / 2) };
 }
 export function getTermLabel(term: StudyTerm | null): string {
   if (!term) return 'Starting term not set';
