@@ -45,4 +45,4 @@ Reduce repetitive setup work dramatically while preserving every existing capabi
 - Automated checks pass and the Pages deployment workflow succeeds before calling the work complete.
 
 ## Status
-Planning complete; implementation in progress.
+Implementation committed on `feat/major-usability-refresh` and proposed in [PR #9](https://github.com/OliverZsuffa/studyplanner/pull/9). Batch entry, parser/duplicate tests, keyboard shortcuts, and responsive mobile styling are implemented. CI verification and Pages deployment are pending; do not merge or claim live until the workflow succeeds.
