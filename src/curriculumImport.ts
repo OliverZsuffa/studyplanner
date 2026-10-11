@@ -69,7 +69,7 @@ export function makePrerequisitePrompt(plan: Pick<StudyPlan, 'name' | 'instituti
   const curriculum = {
     programme: plan.name,
     institution: plan.institution,
-    modules: plan.modules.map(({ id, title, code, semester, ects, description, category }) => ({ id, title, code, semester, ects, description, category })),
+    modules: plan.modules.map(({ id, title, code, semester, plannedSemester, recommendedSemester, ects, description, category }) => ({ id, title, code, legacySemester: semester, plannedSemester: plannedSemester ?? semester ?? null, recommendedSemester: recommendedSemester ?? null, ects, description, category })),
     requirementGroups: plan.requirementGroups ?? [],
   };
   return `You are analysing a university curriculum to help a student plan their studies. Analyse only the modules provided below; do not invent modules or module IDs.
