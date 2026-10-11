@@ -221,4 +221,186 @@ function App() {
     setToast('Module added');
   };
 
+  return (
+    <div className={'app-shell ' + (darkMode ? 'dark-mode' : 'light-mode')}>
+      <header className="topbar">
+        <a className="brand" href="#home" aria-label="Studyplanner home">
+          <span className="brand-mark"><GraduationCap size={21} strokeWidth={2.2} /></span>
+          <span>study<span className="brand-light">planner</span></span>
+        </a>
+        <div className="topbar-context"><span className="context-dot" /> YOUR DEGREE, IN FOCUS</div>
+        <div className="topbar-actions">
+          <button className="button button-quiet theme-toggle" onClick={() => setDarkMode((current) => !current)} aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}<span>{darkMode ? 'Light mode' : 'Dark mode'}</span></button>
+          <button className="button button-quiet" onClick={() => downloadJson(plan)}><ArrowDownToLine size={16} /> Export</button>
+          <button className="button button-quiet" onClick={() => setShowImport(true)}><ArrowUpFromLine size={16} /> Import</button>
+          <button className="avatar-button" title="Local workspace"><span>O</span></button>
+        </div>
+      </header>
 
+      <main className="workspace">
+        <section className="welcome-row">
+          <div>
+            <div className="eyebrow"><Sparkles size={13} /> YOUR PERSONAL STUDY MAP</div>
+            <h1>Make your degree <span>make sense.</span></h1>
+            <p className="welcome-copy">Your courses, grades and semester workload in one place.</p>
+          </div>
+          <div className="plan-picker">
+            <div className="plan-icon"><BookOpen size={18} /></div>
+            <div className="plan-label"><span>YOUR STUDY PLAN</span><strong>{plan.name}</strong><small>{plan.institution}</small></div>
+            <ChevronDown size={16} className="muted-icon" />
+          </div>
+        </section>
+
+        <section className="stats-grid" aria-label="Study progress">
+          <div className="stat-card progress-card">
+            <div className="stat-heading"><span>Overall progress</span><span className="stat-icon lilac"><Target size={17} /></span></div>
+            <div className="stat-number">{progress.percent}<span className="stat-unit">%</span></div>
+            <div className="progress-track"><span style={{ width: progress.percent + '%' }} /></div>
+            <div className="stat-foot">{progress.completed} of {progress.total} modules completed</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-heading"><span>Credits earned</span><span className="stat-icon mint"><GraduationCap size={17} /></span></div>
+            <div className="stat-number">{progress.completedEcts}<span className="stat-unit"> / {progress.totalEcts}</span></div>
+            <div className="stat-foot">ECTS credits completed</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-heading"><span>Ready to take</span><span className="stat-icon amber"><Zap size={17} /></span></div>
+            <div className="stat-number">{readyModules.length}<span className="stat-unit"> modules</span></div>
+            <div className="stat-foot">No required prerequisites outstanding</div>
+          </div>
+          <div className="stat-card next-card">
+            <div className="stat-heading"><span>A good next step</span><span className="stat-icon blue"><Sparkles size={17} /></span></div>
+            <div className="next-course">{readyModules.find((module) => module.status === 'in-progress')?.title ?? readyModules[0]?.title ?? 'You are all caught up'}</div>
+            <button className="text-link" onClick={() => { if (readyModules[0]) { setSelectedId(readyModules[0].id); setView('graph'); } }}>Explore your next step <span>↗</span></button>
+          </div>
+        </section>
+
+        <section className="semester-planning" aria-label="Semester workload">
+          <div className="semester-planning-heading"><div><div className="eyebrow"><CalendarDays size={14} /> YOUR PLAN AT A GLANCE</div><h2>Semester workload</h2><p>ECTS are based on the semester assigned to each course. Change a course’s semester to try a different plan.</p></div><div className="grade-average"><Award size={19} /><span><small>Grade average</small><strong>{gradeAverage}</strong><em>{gradedModules.length ? `ECTS-weighted · ${gradeWeight} ECTS graded` : 'Add grades to calculate'}</em></span></div></div>
+          <div className="semester-grid">{semesterTotals.map(({ semester, modules, ects, completed }) => <button key={semester} className={'semester-card ' + (modules.length ? '' : 'semester-empty')} onClick={() => { setSemesterFilter(String(semester)); document.querySelector('.planner-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><span className="semester-card-top"><strong>Semester {semester}</strong><span>{modules.length} {modules.length === 1 ? 'course' : 'courses'}</span></span><span className="semester-ects">{ects}<small> ECTS planned</small></span><span className="semester-progress"><i style={{ width: ects ? `${Math.min(100, completed / ects * 100)}%` : '0%' }} /></span><span className="semester-card-foot">{completed} of {ects} ECTS passed</span></button>)}</div>
+        </section>
+
+        <section className="planner-section">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow section-eyebrow">THE BIG PICTURE</div>
+              <h2>Your study map</h2>
+              <p>Choose a course to edit its status, grade or planned semester. Drag cards to arrange the map.</p>
+            </div>
+            <div className="view-toggle" aria-label="Choose view">
+              <button className={view === 'graph' ? 'active' : ''} onClick={() => setView('graph')}><LayoutGrid size={15} /> Map</button>
+              <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><List size={15} /> List</button>
+            </div>
+          </div>
+
+          <div className="how-to-use"><span className="how-to-number">1</span><span><strong>Select a course</strong><small>Open its details</small></span><span className="how-to-arrow">→</span><span className="how-to-number">2</span><span><strong>Update your plan</strong><small>Semester, status, result, grade</small></span><span className="how-to-arrow">→</span><span className="how-to-number">3</span><span><strong>Arrange the map</strong><small>Drag cards; connect the handles</small></span></div>
+          <div className="planner-toolbar">
+            <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a module..." /><kbd>⌘ K</kbd></label>
+            <div className="filter-control"><Filter size={15} /><select value={semesterFilter} onChange={(event) => setSemesterFilter(event.target.value)} aria-label="Filter by semester"><option value="all">All semesters</option>{[...new Set(plan.modules.map((module) => module.semester))].sort((a, b) => a - b).map((semester) => <option key={semester} value={String(semester)}>Semester {semester}</option>)}</select></div>
+            <div className="filter-control"><Clock3 size={15} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter by status"><option value="all">All statuses</option><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option></select></div>
+            <div className="toolbar-spacer" />
+            <button className="button button-primary" onClick={() => setShowAdd(true)}><Plus size={16} /> Add module</button>
+          </div>
+
+          <div className={'planner-layout ' + (view === 'list' ? 'list-mode' : '')}>
+            <div className="graph-panel">
+              {view === 'graph' ? (
+                <>
+                  <ReactFlow
+                    nodes={nodes.filter((node) => filteredModules.some((module) => module.id === node.id))}
+                    edges={edges.filter((edge) => filteredModules.some((module) => module.id === edge.source) && filteredModules.some((module) => module.id === edge.target))}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={handleConnect}
+                    onNodeClick={(_, node) => setSelectedId(node.id)}
+                    nodeTypes={nodeTypes}
+                    fitView
+                    fitViewOptions={{ padding: 0.16 }}
+                    minZoom={0.25}
+                    maxZoom={1.5}
+                    nodesConnectable
+                    proOptions={{ hideAttribution: true }}
+                  >
+                    <Background color={darkMode ? '#343e49' : '#bfc9bd'} gap={22} size={1} />
+                    <Controls showInteractive={false} position="bottom-right" />
+                    <MiniMap pannable zoomable nodeStrokeWidth={3} maskColor="rgba(245,247,243,.72)" />
+                  </ReactFlow>
+                  <div className="graph-legend">
+                    <span><i className="legend-line required-line" /> Required prerequisite</span>
+                    <span><i className="legend-line recommended-line" /> Recommended preparation</span>
+                    <span><i className="legend-dot" /> Available next</span>
+                  </div>
+                </>
+              ) : (
+                <div className="module-list">
+                  {filteredModules.length === 0 ? <div className="empty-state"><Search size={24} /><strong>No modules found</strong><span>Try a different search or filter.</span></div> : filteredModules.map((module) => (
+                    <button className={'list-module ' + (selectedId === module.id ? 'selected' : '')} key={module.id} onClick={() => setSelectedId(module.id)}>
+                      <span className="list-semester">S{module.semester}</span><span className="list-module-name"><strong>{module.title}</strong><small>{module.code} · {module.category}</small></span><span className="list-ects">{module.ects} ECTS</span><span className={'status-pill ' + module.status}>{statusLabels[module.status]}</span><span className="list-arrow">↗</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <aside className="details-panel">
+              {selected ? (
+                <>
+                  <div className="details-header"><div className="detail-type"><span className="detail-type-dot" /> MODULE DETAILS</div><button className="icon-button" aria-label="Close module details" onClick={() => setSelectedId(null)}><X size={17} /></button></div>
+                  <div className="details-code">{selected.code} <span>·</span> {selected.category}</div>
+                  <h3>{selected.title}</h3>
+                  <div className="detail-badges"><span className="ects-badge">{selected.ects} ECTS</span><span className="category-badge">{statusLabels[selected.status]}</span></div>
+                  <label className="field-label" htmlFor="planned-semester">PLANNED SEMESTER</label>
+                  <select id="planned-semester" className="status-select detail-field-gap" value={selected.semester} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: Math.max(1, Number(event.target.value) || 1) } : module) }))}>{semesters.map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}<option value={Math.max(...semesters) + 1}>Semester {Math.max(...semesters) + 1}</option></select>
+                  <p className="detail-description">{selected.description}</p>
+                  <label className="field-label" htmlFor="module-status">YOUR PROGRESS</label>
+                  <select id="module-status" className="status-select" value={selected.status} onChange={(event) => changeStatus(selected.id, event.target.value as ModuleStatus)}>
+                    <option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option>
+                  </select>
+                  <div className="result-fields"><label className="form-label" htmlFor="module-result">Exam result<select id="module-result" value={selected.result ?? 'unrecorded'} onChange={(event) => setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, result: event.target.value === 'unrecorded' ? undefined : event.target.value as 'passed' | 'failed' } : module) }))}><option value="unrecorded">Not recorded</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label><label className="form-label" htmlFor="module-grade">Grade <small>German scale, 1.0 (best) to 4.0 (pass)</small><input id="module-grade" type="number" min="1" max="5" step="0.1" placeholder="e.g. 2.3" value={selected.grade ?? ''} onChange={(event) => { const raw = event.target.value; const grade = raw === '' ? undefined : Math.max(1, Math.min(5, Number(raw))); setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, grade } : module) })); }} /></label></div>
+                  <p className="grade-note">ECTS-weighted average of courses marked <strong>Passed</strong> with a grade from 1.0 to 4.0. Failed or ungraded courses are excluded.</p>
+                  <div className="detail-divider" />
+                  <div className="dependency-heading"><span>Prerequisites & connections</span><CircleHelp size={15} /></div>
+                  {requiredIncoming.length > 0 && <div className="dependency-group"><div className="dependency-label official-label">REQUIRED FIRST</div>{requiredIncoming.map((dependency) => {
+                    const parent = plan.modules.find((module) => module.id === dependency.source);
+                    return parent ? <button className="dependency-row" key={dependency.id} onClick={() => setSelectedId(parent.id)}><span className={'dependency-check ' + (parent.status === 'completed' ? 'done' : '')}>{parent.status === 'completed' ? <Check size={12} /> : '!'}</span><span><strong>{parent.title}</strong><small>{parent.status === 'completed' ? 'Completed' : 'Still outstanding'}</small></span><span className="dependency-chevron">↗</span></button> : null;
+                  })}</div>}
+                  {recommendedIncoming.length > 0 && <div className="dependency-group"><div className="dependency-label recommended-label">RECOMMENDED PREPARATION</div>{recommendedIncoming.map((dependency) => {
+                    const parent = plan.modules.find((module) => module.id === dependency.source);
+                    return parent ? <button className="dependency-row" key={dependency.id} onClick={() => setSelectedId(parent.id)}><span className="dependency-check soft"><BookOpen size={12} /></span><span><strong>{parent.title}</strong><small>{dependency.note ?? 'Helpful prior knowledge'}</small></span><span className="dependency-chevron">↗</span></button> : null;
+                  })}</div>}
+                  {requiredIncoming.length + recommendedIncoming.length === 0 && <div className="no-dependencies">No incoming dependencies yet. Connect modules by dragging from one card's handle to another.</div>}
+                  <div className="detail-divider" />
+                  <div className="detail-footer-note"><Sparkles size={15} /><span>Suggested connections are guidance, not official exam requirements unless explicitly marked required.</span></div>
+                </>
+              ) : (
+                <div className="detail-empty"><div className="empty-illustration"><BookOpen size={24} /></div><h3>Start with a course</h3><p>Choose a card to record progress and grades, or add a course that is missing from your plan.</p><button className="button button-primary" onClick={() => setShowAdd(true)}><Plus size={15} /> Add your first course</button></div>
+              )}
+            </aside>
+          </div>
+
+          <div className="bottom-note"><span><span className="sample-badge"><CircleHelp size={12} /> SAMPLE DATA</span> {plan.institution}</span><button onClick={() => { if (window.confirm('Reset your plan and progress to the original sample? This cannot be undone.')) { setPlan(samplePlan); setSelectedId('algorithms'); setToast('Sample plan restored'); } }}><Settings2 size={14} /> Reset sample</button></div>
+        </section>
+
+        <section className="next-strip">
+          <div className="next-strip-icon"><Zap size={18} /></div><div><strong>Your next move, made clearer.</strong><p>Complete a module to update your progress and unlock any courses that depend on it.</p></div><button onClick={() => { setStatusFilter('not-started'); setView('list'); }}>See unfinished modules <span>→</span></button>
+        </section>
+        <footer><span>STUDYPLANNER <span className="footer-dot">•</span> A BETTER WAY THROUGH YOUR DEGREE</span><span>Made for curious minds.</span></footer>
+      </main>
+
+      {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(imported); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); setToast('Study plan imported'); }} />}
+      {showAdd && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><form className="add-modal" onSubmit={addModule}>
+        <div className="modal-heading"><div><div className="eyebrow">MAKE IT YOURS</div><h2>Add a module</h2><p>Add a course to your plan. You can edit its details later.</p></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
+        <label className="form-label">Module name<input autoFocus required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="e.g. Applied Statistics" /></label>
+        <div className="form-row"><label className="form-label">Semester<input type="number" min="1" max="20" value={newSemester} onChange={(event) => setNewSemester(event.target.value)} required /></label><label className="form-label">ECTS credits<input type="number" min="0" max="60" value={newEcts} onChange={(event) => setNewEcts(event.target.value)} required /></label></div>
+        <label className="form-label">Category<input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="e.g. Computer science" /></label>
+        <label className="form-label">Recommended preparation <span className="optional-label">OPTIONAL</span><select value={newDependency} onChange={(event) => setNewDependency(event.target.value)}><option value="">No connection yet</option>{plan.modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select><small>This creates a suggested connection, not a formal prerequisite.</small></label>
+        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="button button-primary"><FilePlus2 size={16} /> Add to plan</button></div>
+      </form></div>}
+      {toast && <div className="toast"><CheckCircle2 size={16} /> {toast}<button aria-label="Dismiss notification" onClick={() => setToast('')}><X size={14} /></button></div>}
+    </div>
+  );
+}
+
+export default function AppRoot() {
+  return <ReactFlowProvider><App /></ReactFlowProvider>;
+}
