@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getWeightedGradeAverage, migrateStudyPlan, type StudyPlan } from './model';
+import { getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getWeightedGradeAverage, migrateStudyPlan, withPlannedSemester, type StudyPlan } from './model';
 
 const plan: StudyPlan = {
   name: 'Test',
@@ -39,6 +39,12 @@ describe('study plan calculations', () => {
     const migrated = migrateStudyPlan(plan);
     expect(getPlannedSemester(migrated.modules[0])).toBe(1);
     expect(migrated.modules[0].recommendedSemester).toBeNull();
+  });
+
+  it('moves a module in the personal plan without changing its official recommendation', () => {
+    const module = { ...plan.modules[0], plannedSemester: 1, recommendedSemester: 3 };
+    expect(withPlannedSemester(module, 4)).toMatchObject({ plannedSemester: 4, semester: 4, recommendedSemester: 3 });
+    expect(withPlannedSemester(module, null)).toMatchObject({ plannedSemester: null, recommendedSemester: 3 });
   });
 
   it('calculates completion and ECTS progress', () => {
