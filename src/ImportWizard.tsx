@@ -90,10 +90,13 @@ export default function ImportWizard({ currentPlan, onApply, onClose }: Props) {
     const chosen = relations.filter((_, i) => selectedRelations.has(i)).map(toDependency);
     if (mode === 'replace') return { name: programme || 'Imported study programme', institution: institution || 'Imported curriculum', modules: imported, dependencies: chosen, requirementGroups: groups };
     const keys = new Set(currentPlan.modules.map((m) => `${m.code.toLowerCase()}|${m.title.toLowerCase()}`));
-    const added = imported.filter((m) => !keys.has(`${m.code.toLowerCase()}|${m.title.toLowerCase()}`));
-    const ids = new Set(added.map((m) => m.id));
-    const dependencies = chosen.filter((d) => ids.has(d.source) && ids.has(d.target));
-    const groupsToAdd = groups.map((g) => ({ ...g, id: `imported-${g.id}`, moduleIds: g.moduleIds.filter((id) => ids.has(id)) }));
+    const addedOriginal = imported.filter((m) => !keys.has(`${m.code.toLowerCase()}|${m.title.toLowerCase()}`));
+    const existingIds = new Set(currentPlan.modules.map((m) => m.id));
+    const remap = new Map(addedOriginal.map((m) => [m.id, existingIds.has(m.id) ? `imported-${m.id}` : m.id]));
+    const added = addedOriginal.map((m) => ({ ...m, id: remap.get(m.id) ?? m.id }));
+    const ids = new Set(addedOriginal.map((m) => m.id));
+    const dependencies = chosen.filter((d) => ids.has(d.source) && ids.has(d.target)).map((d) => ({ ...d, source: remap.get(d.source) ?? d.source, target: remap.get(d.target) ?? d.target }));
+    const groupsToAdd = groups.map((g) => ({ ...g, id: `imported-${g.id}`, moduleIds: g.moduleIds.filter((id) => ids.has(id)).map((id) => remap.get(id) ?? id), selectedModuleIds: (g.selectedModuleIds ?? []).filter((id) => ids.has(id)).map((id) => remap.get(id) ?? id) }));
     return { ...currentPlan, modules: [...currentPlan.modules, ...added], dependencies: [...currentPlan.dependencies, ...dependencies], requirementGroups: [...(currentPlan.requirementGroups ?? []), ...groupsToAdd] };
   };
   const apply = () => { const result = prepare(); if (!result.modules.length) { setNotice('There are no modules to import.'); return; } onApply(result, mode); };
