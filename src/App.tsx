@@ -71,7 +71,7 @@ function ModuleCard({ data }: NodeProps<ModuleFlowNode>) {
 
 const nodeTypes = { moduleCard: ModuleCard };
 
-function makeGraph(plan: StudyPlan, available: Set<string>, selectedId: string | null, onSelect: (id: string) => void) {
+function makeGraph(plan: StudyPlan, nextStepIds: Set<string>, selectedId: string | null, onSelect: (id: string) => void) {
   const bySemester = new Map<number, StudyModule[]>();
   plan.modules.forEach((module) => {
     const semester = getPlannedSemester(module) ?? 99;
@@ -90,7 +90,7 @@ function makeGraph(plan: StudyPlan, available: Set<string>, selectedId: string |
     position: positions.get(module.id) ?? { x: 80, y: 70 },
     data: {
       module,
-      available: available.has(module.id),
+      available: nextStepIds.has(module.id),
       selected: selectedId === module.id,
       incoming: plan.dependencies.filter((dependency) => dependency.target === module.id).length,
       outgoing: plan.dependencies.filter((dependency) => dependency.source === module.id).length,
@@ -158,7 +158,8 @@ function App() {
     return matchesQuery && matchesSemester && matchesStatus;
   }), [plan.modules, query, semesterFilter, statusFilter]);
   const readyModules = plan.modules.filter((module) => available.has(module.id) && module.status !== 'completed');
-  const nextStepModules = getNextStepModules(plan);
+  const nextStepModules = useMemo(() => getNextStepModules(plan), [plan]);
+  const nextStepIds = useMemo(() => new Set(nextStepModules.map((module) => module.id)), [nextStepModules]);
   const requiredIncoming = selected ? plan.dependencies.filter((dependency) => dependency.target === selected.id && dependency.kind === 'required') : [];
   const recommendedIncoming = selected ? plan.dependencies.filter((dependency) => dependency.target === selected.id && dependency.kind === 'recommended') : [];
 
@@ -170,7 +171,7 @@ function App() {
   }, [darkMode]);
 
   const selectModule = useCallback((id: string) => setSelectedId(id), []);
-  const graph = useMemo(() => makeGraph(plan, available, selectedId, selectModule), [plan, available, selectedId, selectModule]);
+  const graph = useMemo(() => makeGraph(plan, nextStepIds, selectedId, selectModule), [plan, nextStepIds, selectedId, selectModule]);
   const [nodes, setNodes, onNodesChange] = useNodesState<ModuleFlowNode>(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(graph.edges);
 
