@@ -71,3 +71,13 @@ The prototype includes a semester Kanban with drag-and-drop plus an accessible s
 - Required dependency warnings identify unfinished predecessors for planned modules and required relationships whose known semester order is same/later. Recommended relationships are not presented as formal blockers.
 - Overlapping requirement-group membership counts a module only when it is selected in every group that references it; the choice panel calls this out. The module's ECTS is counted once because plan totals iterate modules, not group memberships.
 - Request 006's unit tests cover exact ECTS boundaries, unselected alternative visibility/accounting, overlapping groups, legacy recommendation migration, and unsupported `one-from-each`. GitHub Actions run [#72](https://github.com/OliverZsuffa/studyplanner/actions/runs/38165253379) passed the type-check/production build, unit tests, and Pages artifact upload. After merge, main workflow run [#73](https://github.com/OliverZsuffa/studyplanner/actions/runs/38165311407) also completed successfully, including the GitHub Pages deploy job. The web-fetch environment could not independently open the published Pages URL, so the workflow's deployment success is verified but a separate browser smoke test remains unconfirmed.
+
+
+## Usability refresh (Request 007)
+
+- Added a direct workflow for linking an existing course to an elective/choice group from the course details panel. First tick the group to add the course as an option; then tick “Plan to take” to select it. The Electives & requirements section explains when a group has no linked courses.
+- Elective groups and the how-to guide are collapsible. The course details panel can be collapsed while keeping its header and course title visible.
+- Source evidence, optional personal recommendation, and prerequisite/connection details are tucked into disclosure sections instead of being shown all at once.
+- Recommendation is optional personal guidance, not an official evaluation. “No recommendation set” is the default meaning; neutral recommendation pills are hidden to reduce noise.
+- Added explicit progress colours for not started, in progress, and completed, with separate high-contrast dark-mode colours. Import form fields and table cells receive explicit foreground, background, border, and placeholder colours in both themes.
+- Build and test status must be checked in the Request 007 GitHub Actions run before considering this refresh verified.
