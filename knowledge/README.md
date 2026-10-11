@@ -37,5 +37,9 @@ Report only tests actually run. A configured GitHub Actions workflow is not proo
 ## Deployment debugging
 - The initial build blockers were addressed by removing the unused `updateSelected` helper and separating Vite's production configuration from Vitest's test configuration. Verification is tracked in request 001.
 
+## Curriculum import
+
+The curriculum import workflow is implemented in `src/ImportWizard.tsx` and `src/curriculumImport.ts`. It extracts selectable-text PDF pages locally with PDF.js, parses pasted/TXT text heuristically, and stages editable module candidates for review. Elective requirement groups store their possible modules separately from planned selections; only selected options count toward ECTS workload. The wizard generates a provider-neutral prerequisite-analysis prompt, validates pasted JSON responses, and requires users to select AI-suggested relationships explicitly. Formal AI prerequisite claims require evidence or a source URL; recommendations remain non-blocking. No API key, AI API call, or backend is used. Scanned PDFs/OCR and arbitrary URL scraping remain unsupported. Treat parser output and AI analysis as unverified until checked by the student.
+
 ## Current implementation state
 The first prototype lives on main. It includes a React Flow map, list view, progress statuses, localStorage persistence, JSON import/export, and manual module creation. The current sample is illustrative and only uses recommended links, because verified official prerequisites have not yet been supplied. The Pages workflow builds and tests the app before deploying; check the Actions run and live URL before saying the deployment is ready.
