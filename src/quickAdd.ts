@@ -12,7 +12,7 @@ export interface QuickCourseDuplicate {
   batch: boolean;
 }
 
-const CODE_LIKE = /^(?=.*[A-Z])[A-Z0-9][A-Z0-9._/-]{2,}$/i;
+const CODE_LIKE = /^(?=.*[A-Z])(?=.*\\d)[A-Z0-9][A-Z0-9._/-]{2,}$/i;
 
 function separatorFor(line: string): string | null {
   if (line.includes("\t")) return "\t";
