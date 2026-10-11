@@ -181,8 +181,15 @@ Because the data model and scheduling logic are shared by several views, impleme
 
 ## Implementation status
 
-Planning only. No product code has been changed in this request.
+Implemented on `feat/009-timetable-calendar-scheduling`:
+
+- Extended the canonical plan schema with starting term, course availability, course components, alternative timeslots, per-timeslot online availability, and multiple exams. Legacy plans migrate with availability “both”, empty schedules/exams, and no starting term.
+- Added semester-to-calendar-term mapping and availability checks in Kanban moves, course details, and the scheduling workspace. Existing incompatible placements are reported rather than silently reassigned.
+- Added the Schedule workspace with course/component/exam editing, a semester timetable with alternative selection and clash prevention, a monthly/list calendar, and directed dependency CRUD.
+- Calendar generation uses only explicit component date ranges and selected weekly slots, and marks teaching-period start/end dates separately. Exams appear only on entered dates.
+- Added unit tests for term mapping, availability, migration defaults, time/date overlap, schedule conflicts, and calendar event generation.
+- Export/import continue to serialize/migrate the canonical plan object, including the new fields.
 
 ## Verification
 
-To be completed after implementation. Check CI and the post-merge Pages deployment separately; a successful build is not proof of a successful live browser smoke test.
+Implementation and tests have been committed to the feature branch. CI and production build results are pending the pull-request workflow. The GitHub Pages deployment and a live browser smoke test have not yet been verified.
