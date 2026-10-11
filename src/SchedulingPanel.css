@@ -15,3 +15,5 @@
 .planner-layout.schedule-mode{display:block}.planner-layout.schedule-mode .graph-panel{width:100%;min-width:0}.planner-layout.schedule-mode .details-panel{display:none}.timetable-session.unselected{border-style:dashed;opacity:.9}
 
 .calendar-event.teaching-start{border-left-color:#2e9a58;background:#e9f8ee;color:#205d34}.calendar-event.teaching-end{border-left-color:#a17c37;background:#fff7e5;color:#76571e}.dark-mode .calendar-event.teaching-start{background:#173b27;color:#d7f7df}.dark-mode .calendar-event.teaching-end{background:#43351b;color:#ffedbd}
+
+.alternative-chips{display:flex;flex-direction:column;gap:3px}.alternative-chips button{padding:3px 4px;border:1px dashed currentColor;border-radius:4px;background:transparent;color:inherit;text-align:left;font-size:8px;line-height:1.25;cursor:grab}.alternative-chips button:active{cursor:grabbing}.alternative-chips button:focus-visible{outline:2px solid #4c9361;outline-offset:1px}
