@@ -85,6 +85,7 @@ function makeGraph(plan: StudyPlan, nextStepIds: Set<string>, selectedId: string
   [...bySemester.entries()].sort(([a], [b]) => a - b).forEach(([semester, modules]) => {
     modules.forEach((module, index) => positions.set(module.id, { x: 80 + ((semester === 99 ? maxPlannedSemester + 1 : semester) - 1) * 340, y: 70 + index * 174 }));
   });
+  const visibleIds = new Set(plan.modules.map((module) => module.id));
   const nodes: ModuleFlowNode[] = plan.modules.map((module) => ({
     id: module.id,
     type: 'moduleCard',
@@ -99,7 +100,6 @@ function makeGraph(plan: StudyPlan, nextStepIds: Set<string>, selectedId: string
     },
     draggable: true,
   }));
-  const visibleIds = new Set(plan.modules.map((module) => module.id));
   const edges: Edge[] = plan.dependencies.filter((dependency) => visibleIds.has(dependency.source) && visibleIds.has(dependency.target)).map((dependency) => ({
     id: dependency.id,
     source: dependency.source,
