@@ -33,3 +33,6 @@ Use a clearly labelled illustrative curriculum for the first experience. Do not 
 
 ## Testing and honesty
 Report only tests actually run. A configured GitHub Actions workflow is not proof that it has passed. Verify the deployed Pages URL and workflow status before claiming the live site works.
+
+## Current implementation state
+The first prototype lives on main. It includes a React Flow map, list view, progress statuses, localStorage persistence, JSON import/export, and manual module creation. The current sample is illustrative and only uses recommended links, because verified official prerequisites have not yet been supplied. The Pages workflow builds and tests the app before deploying; check the Actions run and live URL before saying the deployment is ready.
