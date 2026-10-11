@@ -152,7 +152,7 @@ export function findScheduleConflict(plan: StudyPlan, semester: number, moduleId
   }
   return null;
 }
-export interface CalendarEvent { id: string; date: string; title: string; subtitle: string; location: string; startTime?: string; endTime?: string; kind: 'teaching' | 'exam'; moduleId: string; }
+export interface CalendarEvent { id: string; date: string; title: string; subtitle: string; location: string; startTime?: string; endTime?: string; kind: 'teaching' | 'teaching-start' | 'teaching-end' | 'exam'; moduleId: string; }
 export function getCalendarEvents(plan: StudyPlan): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   for (const module of plan.modules) {
@@ -160,7 +160,12 @@ export function getCalendarEvents(plan: StudyPlan): CalendarEvent[] {
     for (const component of module.components ?? []) {
       const slot = component.alternatives.find(s => s.id === component.selectedAlternativeId);
       const start = dateOnly(component.startDate), end = dateOnly(component.endDate);
-      if (!slot || !start || !end || start > end || !validTimeRange(slot.startTime, slot.endTime)) continue;
+      if (!start || !end || start > end) continue;
+      const startText = component.startDate;
+      const endText = component.endDate;
+      events.push({ id: component.id + '-period-start', date: startText, title: module.title, subtitle: (component.name || component.type) + ' starts', location: '', kind: 'teaching-start', moduleId: module.id });
+      if (endText !== startText) events.push({ id: component.id + '-period-end', date: endText, title: module.title, subtitle: (component.name || component.type) + ' ends', location: '', kind: 'teaching-end', moduleId: module.id });
+      if (!slot || !validTimeRange(slot.startTime, slot.endTime)) continue;
       const cursor = new Date(start);
       while (cursor <= end) {
         if (cursor.getDay() === slot.weekday) events.push({ id: component.id + '-' + cursor.getFullYear() + '-' + (cursor.getMonth()+1) + '-' + cursor.getDate(), date: cursor.getFullYear() + '-' + String(cursor.getMonth()+1).padStart(2,'0') + '-' + String(cursor.getDate()).padStart(2,'0'), title: module.title, subtitle: component.name || component.type, location: slot.location, startTime: slot.startTime, endTime: slot.endTime, kind: 'teaching', moduleId: module.id });
