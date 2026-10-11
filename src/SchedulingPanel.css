@@ -13,3 +13,5 @@
 @media(max-width:600px){.schedule-panel{padding:13px}.schedule-heading h2{font-size:20px}.schedule-tabs button{flex:1}.starting-term,.schedule-fields{grid-template-columns:1fr}.schedule-card-title{flex-direction:column}.slot-editor{grid-template-columns:repeat(2,minmax(0,1fr))}.calendar-day,.calendar-blank{min-height:70px;padding:3px}.calendar-event{font-size:8px}.dependency-item{flex-wrap:wrap}.dependency-item>div{flex-basis:calc(100% - 55px)}.schedule-toolbar>label{align-items:flex-start;flex-direction:column}.schedule-toolbar select{min-width:0;width:100%}}
 
 .planner-layout.schedule-mode{display:block}.planner-layout.schedule-mode .graph-panel{width:100%;min-width:0}.planner-layout.schedule-mode .details-panel{display:none}.timetable-session.unselected{border-style:dashed;opacity:.9}
+
+.calendar-event.teaching-start{border-left-color:#2e9a58;background:#e9f8ee;color:#205d34}.calendar-event.teaching-end{border-left-color:#a17c37;background:#fff7e5;color:#76571e}.dark-mode .calendar-event.teaching-start{background:#173b27;color:#d7f7df}.dark-mode .calendar-event.teaching-end{background:#43351b;color:#ffedbd}
