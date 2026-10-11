@@ -22,6 +22,8 @@ import {
 import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester } from './model';
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
+import SchedulingPanel from './SchedulingPanel';
+import { availabilityConflict, getTermForSemester, getTermLabel } from './model';
 
 const STORAGE_KEY = 'studyplanner.plan.v1';
 
@@ -105,7 +107,7 @@ function makeGraph(plan: StudyPlan, nextStepIds: Set<string>, selectedId: string
     source: dependency.source,
     target: dependency.target,
     type: 'smoothstep',
-    animated: dependency.kind === 'required',
+    animated: false,
     label: dependency.kind === 'required' ? 'Required' : 'Recommended',
     labelStyle: { fontSize: 10, fontWeight: 600, fill: dependency.kind === 'required' ? '#6b55b5' : '#748276' },
     labelBgStyle: { fill: '#ffffff', fillOpacity: 0.94 },
@@ -136,7 +138,7 @@ function App() {
   const [query, setQuery] = useState('');
   const [semesterFilter, setSemesterFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [view, setView] = useState<'kanban' | 'graph' | 'list'>('kanban');
+  const [view, setView] = useState<'kanban' | 'graph' | 'list' | 'schedule'>('kanban');
   const [showAdd, setShowAdd] = useState(false);
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [newCode, setNewCode] = useState('CUSTOM');
@@ -280,6 +282,10 @@ function App() {
   };
 
   const moveModule = (id: string, semester: number | null) => {
+    const module = plan.modules.find((item) => item.id === id);
+    const term = semester === null ? null : getTermForSemester(plan.startingTerm, semester);
+    const conflict = module && semester !== null ? availabilityConflict(module, term) : null;
+    if (conflict) { setToast(conflict); return; }
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? withPlannedSemester(module, semester) : module) }));
     setToast(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
   };
@@ -388,12 +394,13 @@ function App() {
             <div>
               <div className="eyebrow section-eyebrow">THE BIG PICTURE</div>
               <h2>Your study map</h2>
-              <p>{view === 'kanban' ? 'Move courses between semester columns. Select a course to update its progress and exam results.' : view === 'graph' ? 'Explore course relationships. Solid lines mean required prerequisites; dashed lines mean recommended preparation.' : 'Search and scan courses in a compact list. Select any course to edit its details.'}</p>
+              <p>{view === 'schedule' ? 'Set course availability, enter teaching sessions and exams, resolve timetable conflicts, and manage dependency connections.' : view === 'kanban' ? 'Move courses between semester columns. Select a course to update its progress and exam results.' : view === 'graph' ? 'Explore course relationships. Solid lines mean required prerequisites; dashed lines mean recommended preparation.' : 'Search and scan courses in a compact list. Select any course to edit its details.'}</p>
             </div>
             <div className="view-toggle" aria-label="Choose view">
               <button className={view === 'kanban' ? 'active' : ''} onClick={() => setView('kanban')}><Columns3 size={15} /> Plan</button>
               <button className={view === 'graph' ? 'active' : ''} onClick={() => setView('graph')}><LayoutGrid size={15} /> Map</button>
               <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><List size={15} /> List</button>
+              <button className={view === 'schedule' ? 'active' : ''} onClick={() => setView('schedule')}><CalendarDays size={15} /> Schedule</button>
             </div>
           </div>
 
@@ -407,9 +414,9 @@ function App() {
             <button className="button button-primary" onClick={openAddModule}><Plus size={16} /> Add course</button>
           </div>
 
-          <div className={'planner-layout ' + (view === 'list' ? 'list-mode' : '') + (view === 'kanban' ? ' kanban-mode' : '')}>
+          <div className={'planner-layout ' + (view === 'list' ? 'list-mode' : '') + (view === 'kanban' ? ' kanban-mode' : '') + (view === 'schedule' ? ' schedule-mode' : '')}>
             <div className="graph-panel">
-              {view === 'kanban' ? (
+              {view === 'schedule' ? <SchedulingPanel plan={plan} setPlan={setPlan} onSelectModule={(id) => { setSelectedId(id); setView('kanban'); }} /> : view === 'kanban' ? (
                 <div className="kanban-board" aria-label="Semester planning board">
                   {[...semesters.map((semester) => ({ semester, title: `Semester ${semester}` })), { semester: null as number | null, title: 'Unplanned' }].map((column) => {
                     const columnModules = filteredModules.filter((module) => getPlannedSemester(module) === column.semester);
