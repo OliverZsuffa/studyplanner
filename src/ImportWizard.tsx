@@ -1,4 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
+import './ImportWizard.css';
 import { ArrowLeft, ArrowRight, Check, Clipboard, FileText, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
