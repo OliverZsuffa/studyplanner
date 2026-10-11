@@ -71,11 +71,46 @@ describe('AI curriculum extraction validation', () => {
     expect(result.errors[0]).toContain('unknown module codes');
   });
 
-  it('generates a provider-neutral extraction prompt with unknown-field and alternatives rules', () => {
+  it('generates a concise provider-neutral prompt that preserves requirements without known options', () => {
     const prompt = makeCurriculumExtractionPrompt();
     expect(prompt).toContain('studyplanner-curriculum/v1');
     expect(prompt).toContain('otherwise null');
     expect(prompt).toContain('Keep alternative modules as alternatives');
+    expect(prompt).toContain('Always create a requirementGroups entry');
+    expect(prompt).toContain('empty moduleCodes array');
+    expect(prompt).toContain('Keep distinct or nested elective areas separate');
+    expect(prompt).toContain('does not make all of them compulsory');
+  });
+
+  it('preserves an explicit elective requirement when its option list is empty', () => {
+    const result = parseAiCurriculum(JSON.stringify({
+      schema: 'studyplanner-curriculum/v1',
+      modules: [{ code: 'STAT101', title: 'Statistics', ects: 5, recommendedSemester: null }],
+      requirementGroups: [{ title: 'Statistics elective', rule: 'min-ects', target: 5, moduleCodes: [], sourceNote: 'Options are listed in a separate catalogue.' }],
+      warnings: [],
+    }));
+    expect(result.errors).toEqual([]);
+    expect(result.draft?.requirementGroups).toEqual([{
+      title: 'Statistics elective',
+      rule: 'min-ects',
+      target: 5,
+      moduleCodes: [],
+      selectedCodes: [],
+      sourceNote: 'Options are listed in a separate catalogue.',
+    }]);
+  });
+
+  it('keeps distinct elective requirement groups separate', () => {
+    const result = parseAiCurriculum(JSON.stringify({
+      schema: 'studyplanner-curriculum/v1',
+      modules: [{ code: 'STAT101', title: 'Statistics', ects: 5 }, { code: 'ECON101', title: 'Economics elective', ects: 5 }],
+      requirementGroups: [
+        { title: 'Statistics elective', rule: 'min-ects', target: 5, moduleCodes: ['STAT101'] },
+        { title: 'Economics elective', rule: 'min-ects', target: 5, moduleCodes: ['ECON101'] },
+      ],
+      warnings: [],
+    }));
+    expect(result.draft?.requirementGroups.map((group) => group.title)).toEqual(['Statistics elective', 'Economics elective']);
   });
 });
 
