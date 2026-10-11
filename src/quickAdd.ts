@@ -12,7 +12,7 @@ export interface QuickCourseDuplicate {
   batch: boolean;
 }
 
-const CODE_LIKE = /^(?=.*[A-Z])(?=.*\\d)[A-Z0-9][A-Z0-9._/-]{2,}$/i;
+const CODE_LIKE = /^(?=.*[A-Z])(?=.*\d)[A-Z0-9][A-Z0-9._/-]{2,}$/i;
 
 function separatorFor(line: string): string | null {
   if (line.includes("\t")) return "\t";
@@ -46,7 +46,7 @@ export function parseQuickCourseLines(text: string, defaults: { ects: string; se
     const separator = separatorFor(line);
     let fields = separator ? line.split(separator).map((part) => part.trim()) : [line];
     if (separator === ',' && fields.length > 1) {
-      const hasStructuredFields = /^\\d+(?:[.,]\\d+)?$/.test(fields[2] ?? '') || CODE_LIKE.test(fields[0]) || CODE_LIKE.test(fields[1] ?? '');
+      const hasStructuredFields = /^\d+(?:[.,]\d+)?$/.test(fields[2] ?? '') || CODE_LIKE.test(fields[0]) || CODE_LIKE.test(fields[1] ?? '');
       if (!hasStructuredFields) fields = [line];
     }
     const draft: QuickCourseDraft = {
