@@ -10,7 +10,6 @@ const uid = () => globalThis.crypto?.randomUUID?.() ?? 'id-' + Date.now().toStri
 const emptySlot = (): TimeSlotAlternative => ({ id: uid(), weekday: 1, startTime: '10:00', endTime: '12:00', location: '', online: false });
 const emptyComponent = (): CourseComponent => ({ id: uid(), type: 'Lecture', name: '', startDate: '', endDate: '', alternatives: [emptySlot()] });
 const emptyExam = (): CourseExam => ({ id: uid(), label: 'Exam', date: '', location: '' });
-const termShort = (season: string, year: number) => season === 'winter' ? `Winter ${year}/${String(year + 1).slice(-2)}` : `Summer ${year}`;
 
 export default function SchedulingPanel({ plan, setPlan, onSelectModule }: Props) {
   const [tab, setTab] = useState<PanelTab>('courses');
