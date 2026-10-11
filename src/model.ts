@@ -2,6 +2,13 @@ export type ModuleStatus = 'not-started' | 'in-progress' | 'completed';
 export type ModuleRecommendation = 'not-reviewed' | 'recommended' | 'strongly-recommended';
 export type DependencyKind = 'required' | 'recommended';
 export type RequirementRule = 'min-ects' | 'max-ects' | 'exact-ects' | 'module-count' | 'one-from-each';
+export type CourseAvailability = 'winter' | 'summer' | 'both';
+export type StudyTerm = { season: 'winter' | 'summer'; year: number };
+export type CourseComponentType = 'Lecture' | 'Tutorial' | 'Exercise class' | 'Practical / lab' | 'Seminar' | 'Project' | 'Other';
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export interface TimeSlotAlternative { id: string; weekday: Weekday; startTime: string; endTime: string; location: string; online: boolean; }
+export interface CourseComponent { id: string; type: CourseComponentType; name: string; startDate: string; endDate: string; alternatives: TimeSlotAlternative[]; selectedAlternativeId?: string; }
+export interface CourseExam { id: string; label: string; date: string; location: string; }
 
 export interface RequirementGroup {
   id: string;
