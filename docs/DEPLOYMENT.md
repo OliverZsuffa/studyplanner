@@ -12,3 +12,7 @@ The workflow at .github/workflows/deploy.yml builds the Vite app and publishes d
 The Vite base path is configured for the repository name studyplanner. If the repository is renamed, update base in vite.config.ts.
 
 The workflow is configured in the repository. The first live deployment is not considered verified until the workflow succeeds and the published URL loads.
+
+## Deployment status note
+
+The workflow attempts to enable Pages automatically through actions/configure-pages and then builds, tests, and deploys. If the workflow reports that Pages cannot be enabled, use the one-time repository setup above.
