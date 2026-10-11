@@ -125,6 +125,16 @@ export function timesOverlap(aStart: string, aEnd: string, bStart: string, bEnd:
   const minutes = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : NaN;
   return minutes(aStart) < minutes(bEnd) && minutes(bStart) < minutes(aEnd);
 }
+export function dateRangesShareWeekday(aStart: string, aEnd: string, bStart: string, bEnd: string, weekday: Weekday): boolean {
+  const a = dateOnly(aStart), b = dateOnly(aEnd), c = dateOnly(bStart), d = dateOnly(bEnd);
+  if (!a || !b || !c || !d) return false;
+  const start = a > c ? a : c;
+  const end = b < d ? b : d;
+  if (start > end) return false;
+  const candidate = new Date(start);
+  candidate.setDate(candidate.getDate() + ((weekday - candidate.getDay() + 7) % 7));
+  return candidate <= end;
+}
 export function findScheduleConflict(plan: StudyPlan, semester: number, moduleId: string, componentId: string, alternativeId: string): { module: StudyModule; component: CourseComponent; slot: TimeSlotAlternative } | null {
   const targetModule = plan.modules.find(m => m.id === moduleId);
   const targetComponent = targetModule?.components?.find(c => c.id === componentId);
@@ -137,7 +147,7 @@ export function findScheduleConflict(plan: StudyPlan, semester: number, moduleId
       if (!selectedId || (module.id === moduleId && component.id === componentId)) continue;
       const slot = component.alternatives.find(s => s.id === selectedId);
       if (!slot || slot.weekday !== targetSlot.weekday || !component.startDate || !component.endDate) continue;
-      if (dateRangesOverlap(targetComponent.startDate, targetComponent.endDate, component.startDate, component.endDate) && timesOverlap(targetSlot.startTime, targetSlot.endTime, slot.startTime, slot.endTime)) return { module, component, slot };
+      if (dateRangesShareWeekday(targetComponent.startDate, targetComponent.endDate, component.startDate, component.endDate, targetSlot.weekday) && timesOverlap(targetSlot.startTime, targetSlot.endTime, slot.startTime, slot.endTime)) return { module, component, slot };
     }
   }
   return null;
