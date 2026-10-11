@@ -4,12 +4,12 @@ import { ArrowLeft, ArrowRight, Check, Clipboard, FileText, Plus, Sparkles, Tras
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { RequirementGroup, StudyModule, StudyPlan } from './model';
-import { createRequirementGroup, makePrerequisitePrompt, parseAiRelationships, parseCurriculumText, toDependency, type AiRelationship, type ParseWarning } from './curriculumImport';
+import { createRequirementGroup, makeCurriculumExtractionPrompt, makePrerequisitePrompt, parseAiCurriculum, parseAiRelationships, parseCurriculumText, toDependency, type AiRelationship, type ParseWarning } from './curriculumImport';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 type Props = { currentPlan: StudyPlan; onApply: (plan: StudyPlan, mode: 'add' | 'replace') => void; onClose: () => void };
-type Stage = 'source' | 'review' | 'ai' | 'finish';
-const freshModule = (i: number): StudyModule => ({ id: `manual-${Date.now().toString(36)}-${i}`, title: '', code: '', semester: 1, ects: 5, status: 'not-started', description: '', category: 'Unclassified' });
+type Stage = 'source' | 'extract' | 'review' | 'ai' | 'finish';
+const freshModule = (i: number): StudyModule => ({ id: `manual-${Date.now().toString(36)}-${i}`, title: '', code: '', semester: undefined, plannedSemester: null, recommendedSemester: null, ects: 5, status: 'not-started', description: '', category: 'Unclassified' });
 
 async function extractPdf(file: File): Promise<string> {
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
@@ -44,6 +44,9 @@ export default function ImportWizard({ currentPlan, onApply, onClose }: Props) {
   const [groupRule, setGroupRule] = useState<RequirementGroup['rule']>('min-ects');
   const [groupTarget, setGroupTarget] = useState('6');
   const [prompt, setPrompt] = useState('');
+  const [extractPrompt, setExtractPrompt] = useState(makeCurriculumExtractionPrompt());
+  const [extractResponse, setExtractResponse] = useState('');
+  const [extractWarnings, setExtractWarnings] = useState<string[]>([]);
   const [aiText, setAiText] = useState('');
   const [relations, setRelations] = useState<AiRelationship[]>([]);
   const [selectedRelations, setSelectedRelations] = useState<Set<number>>(new Set());
@@ -57,7 +60,7 @@ export default function ImportWizard({ currentPlan, onApply, onClose }: Props) {
   const loadText = (value: string, name: string) => {
     setText(value); setSourceName(name);
     const parsed = parseCurriculumText(value);
-    setModules(parsed.modules); setWarnings(parsed.warnings); setGroups([]);
+    setModules(parsed.modules); setWarnings(parsed.warnings); setExtractWarnings([]); setErrors([]); setGroups([]);
     setNotice(`Found ${parsed.modules.length} module candidates. Review them carefully.`);
     setStage('review');
   };
@@ -80,6 +83,47 @@ export default function ImportWizard({ currentPlan, onApply, onClose }: Props) {
   };
   const updateModule = (id: string, patch: Partial<StudyModule>) => setModules((list) => list.map((m) => m.id === id ? { ...m, ...patch } : m));
   const removeModule = (id: string) => { setModules((list) => list.filter((m) => m.id !== id)); setGroups((list) => list.map((g) => ({ ...g, moduleIds: g.moduleIds.filter((x) => x !== id) }))); };
+  const validateExtraction = () => {
+    const result = parseAiCurriculum(extractResponse);
+    setErrors(result.errors);
+    if (!result.draft) return;
+    const stamp = Date.now().toString(36);
+    const extractedModules: StudyModule[] = result.draft.modules.map((item, index) => ({
+      id: `ai-${(item.code || item.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36)}-${stamp}-${index}`,
+      title: item.title,
+      code: item.code ?? '',
+      ects: item.ects ?? 0,
+      plannedSemester: item.recommendedSemester ?? null,
+      recommendedSemester: item.recommendedSemester ?? null,
+      status: 'not-started',
+      description: item.description ?? '',
+      category: item.category ?? 'Unclassified',
+      sourceEvidence: item.sourceEvidence ?? '',
+      sourceLocation: item.sourceLocation ?? '',
+    }));
+    const byCode = new Map(extractedModules.filter((m) => m.code).map((m) => [m.code, m.id]));
+    const extractedGroups: RequirementGroup[] = result.draft.requirementGroups.map((group, index) => ({
+      id: `ai-group-${stamp}-${index}`,
+      title: group.title,
+      rule: group.rule,
+      target: group.target,
+      moduleIds: group.moduleCodes.map((code) => byCode.get(code)).filter((id): id is string => Boolean(id)),
+      selectedModuleIds: (group.selectedCodes ?? []).map((code) => byCode.get(code)).filter((id): id is string => Boolean(id)),
+      sourceNote: group.sourceNote,
+    }));
+    setModules(extractedModules);
+    setGroups(extractedGroups);
+    setProgramme(result.draft.programme || currentPlan.name);
+    setInstitution(result.draft.institution || currentPlan.institution);
+    setSourceName('AI-extracted curriculum');
+    setExtractWarnings(result.draft.warnings);
+    setWarnings([]);
+    setRelations([]);
+    setSelectedRelations(new Set());
+    setNotice('AI extraction loaded as a draft. Check missing ECTS, semesters, source evidence, and choice groups before importing.');
+    setErrors(result.errors);
+    setStage('review');
+  };
   const parseAi = () => {
     const result = parseAiRelationships(aiText, modules);
     setRelations(result.relationships); setErrors(result.errors); setSelectedRelations(new Set());
@@ -102,23 +146,33 @@ export default function ImportWizard({ currentPlan, onApply, onClose }: Props) {
     return { ...currentPlan, modules: [...currentPlan.modules, ...added], dependencies: [...currentPlan.dependencies, ...dependencies], requirementGroups: [...(currentPlan.requirementGroups ?? []), ...groupsToAdd] };
   };
   const apply = () => { const result = prepare(); if (!result.modules.length) { setNotice('There are no modules to import.'); return; } onApply(result, mode); };
-  const step = ({ source: 1, review: 2, ai: 3, finish: 4 } as Record<Stage, number>)[stage];
+  const step = ({ source: 1, extract: 2, review: 3, ai: 4, finish: 5 } as Record<Stage, number>)[stage];
 
   return <div className="import-overlay" role="dialog" aria-modal="true" aria-labelledby="import-title"><div className="import-modal">
-    <header className="import-header"><div><div className="eyebrow"><Sparkles size={13} /> CURRICULUM IMPORT</div><h2 id="import-title">{restore ? 'Restore a backup' : 'Build your study plan'}</h2><p>Local parsing, manual correction and optional AI-assisted prerequisite analysis.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button></header>
-    <div className="import-steps">{['Source', 'Review', 'AI analysis', 'Apply'].map((label, i) => <div key={label} className={step === i + 1 ? 'current' : step > i + 1 ? 'done' : ''}><span>{step > i + 1 ? <Check size={12} /> : i + 1}</span>{label}</div>)}</div>
+    <header className="import-header"><div><div className="eyebrow"><Sparkles size={13} /> CURRICULUM IMPORT</div><h2 id="import-title">{restore ? 'Restore a backup' : 'Build your study plan'}</h2><p>AI-assisted curriculum extraction, manual review and optional prerequisite analysis.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button></header>
+    <div className="import-steps">{['Source', 'AI extraction', 'Review', 'AI analysis', 'Apply'].map((label, i) => <div key={label} className={step === i + 1 ? 'current' : step > i + 1 ? 'done' : ''}><span>{step > i + 1 ? <Check size={12} /> : i + 1}</span>{label}</div>)}</div>
     {stage === 'source' && <section className="import-body">
       <label className="import-drop"><Upload size={23} /><strong>Choose a file</strong><span>Selectable-text PDF, TXT or Studyplanner JSON backup</span><input type="file" accept=".pdf,.txt,.json,application/pdf,text/plain,application/json" onChange={onFile} /></label>
-      <div className="import-privacy"><FileText size={20} /><span><strong>Your curriculum stays in this browser.</strong> Studyplanner does not send it to an AI service. Scanned PDFs need OCR and are not supported yet.</span></div>
+      <div className="import-privacy"><FileText size={20} /><span><strong>Your curriculum stays in this browser.</strong> Studyplanner never uploads your files or sends data to an AI service. For difficult PDFs, use the AI extraction prompt and attach the source directly to your chosen AI tool.</span></div>
+      <div className="import-callout"><Sparkles size={19} /><div><strong>Recommended: extract with your AI</strong><p>Works with module handbooks, tables, pasted text, and webpages if your chosen AI can access them. You review everything before it enters your plan.</p><button className="button button-primary" onClick={() => { setExtractPrompt(makeCurriculumExtractionPrompt()); setStage('extract'); }}>Create extraction prompt <ArrowRight size={15} /></button></div></div>
       <label className="import-label">Or paste curriculum text<textarea rows={9} value={text} onChange={(e) => setText(e.target.value)} placeholder={'Example:\nIN2010 Algorithms and Data Structures — 6 ECTS\nIN2020 Database Systems — 5 ECTS'} /></label>
       <div className="import-actions"><span className="import-hint">{notice || sourceName}</span><button className="button button-primary" disabled={!text.trim()} onClick={() => loadText(text, 'Pasted curriculum text')}>Extract modules <ArrowRight size={15} /></button></div>
+    </section>}
+    {stage === 'extract' && <section className="import-body">
+      <div className="import-callout"><Sparkles size={19} /><div><strong>Use the AI service you trust</strong><p>Copy the prompt into your chosen AI and attach the module handbook, paste the source text, or include a webpage URL. Studyplanner itself does not upload files or fetch URLs.</p></div></div>
+      <label className="import-label">Curriculum extraction prompt<textarea className="import-large-text" rows={14} value={extractPrompt} onChange={(e) => setExtractPrompt(e.target.value)} /></label>
+      <div className="import-actions"><button className="button button-quiet" onClick={() => setStage('source')}><ArrowLeft size={15} /> Back</button><button className="button button-quiet" onClick={() => { void navigator.clipboard?.writeText(extractPrompt).then(() => setNotice('Extraction prompt copied.')).catch(() => setNotice('Clipboard unavailable; select and copy manually.')); }}><Clipboard size={15} /> Copy prompt</button></div>
+      <label className="import-label">Paste the AI's JSON response<textarea className="import-large-text" rows={10} value={extractResponse} onChange={(e) => setExtractResponse(e.target.value)} placeholder={'{"schema":"studyplanner-curriculum/v1","modules":[],"requirementGroups":[],"warnings":[]}'} /></label>
+      {notice && <p className="import-notice">{notice}</p>}
+      {errors.length > 0 && <div className="import-errors"><strong>Validation issues</strong>{errors.map((e, i) => <p key={i}>{e}</p>)}</div>}
+      <div className="import-actions"><span className="import-hint">JSON is checked for structure, not for factual accuracy.</span><button className="button button-primary" disabled={!extractResponse.trim()} onClick={validateExtraction}>Validate and review <ArrowRight size={15} /></button></div>
     </section>}
     {stage === 'review' && <section className="import-body">
       <div className="import-plan-fields"><label className="import-label">Programme<input value={programme} onChange={(e) => setProgramme(e.target.value)} /></label><label className="import-label">University / source<input value={institution} onChange={(e) => setInstitution(e.target.value)} /></label></div>
       <div className="import-summary"><strong>{modules.length} candidates</strong><span>{totalEcts} ECTS across all listed options</span><span>{sourceName}</span></div>
-      {notice && <p className="import-notice">{notice}</p>}
-      {warnings.length > 0 && <details className="import-warnings"><summary>{warnings.length} lines need attention</summary>{warnings.slice(0, 10).map((w, i) => <p key={i}>Line {w.line}: {w.reason}<small>{w.text}</small></p>)}</details>}
-      <div className="import-table-wrap"><table className="import-table"><thead><tr><th>Title</th><th>Code</th><th>ECTS</th><th>Semester</th><th>Description</th><th /></tr></thead><tbody>{modules.map((m) => <tr key={m.id}><td><input aria-label="Module title" value={m.title} onChange={(e) => updateModule(m.id, { title: e.target.value })} /></td><td><input aria-label="Module code" value={m.code} onChange={(e) => updateModule(m.id, { code: e.target.value })} /></td><td><input aria-label="ECTS" type="number" min="0" max="60" step=".5" value={m.ects} onChange={(e) => updateModule(m.id, { ects: Number(e.target.value) })} /></td><td><input aria-label="Semester" type="number" min="1" max="20" value={m.semester} onChange={(e) => updateModule(m.id, { semester: Number(e.target.value) })} /></td><td><textarea aria-label="Description" rows={2} value={m.description} onChange={(e) => updateModule(m.id, { description: e.target.value })} placeholder="Optional; helps AI analysis" /></td><td><button className="import-icon-button" onClick={() => removeModule(m.id)} aria-label="Remove module"><Trash2 size={14} /></button></td></tr>)}</tbody></table></div>
+      {notice && <p className="import-notice">{notice}</p>}{errors.length > 0 && <div className="import-errors"><strong>Extraction validation notes</strong>{errors.map((e, i) => <p key={i}>{e}</p>)}</div>}
+      {extractWarnings.length > 0 && <details className="import-warnings"><summary>{extractWarnings.length} AI extraction notes</summary>{extractWarnings.map((warning, i) => <p key={i}>{warning}</p>)}</details>}{warnings.length > 0 && <details className="import-warnings"><summary>{warnings.length} lines need attention</summary>{warnings.slice(0, 10).map((w, i) => <p key={i}>Line {w.line}: {w.reason}<small>{w.text}</small></p>)}</details>}
+      <div className="import-table-wrap"><table className="import-table"><thead><tr><th>Title</th><th>Code</th><th>ECTS</th><th>Official semester</th><th>Planned semester</th><th>Description / evidence</th><th /></tr></thead><tbody>{modules.map((m) => <tr key={m.id}><td><input aria-label="Module title" value={m.title} onChange={(e) => updateModule(m.id, { title: e.target.value })} /></td><td><input aria-label="Module code" value={m.code} onChange={(e) => updateModule(m.id, { code: e.target.value })} /></td><td><input aria-label="ECTS" type="number" min="0" max="60" step=".5" value={m.ects || ''} onChange={(e) => updateModule(m.id, { ects: Number(e.target.value) })} placeholder="Unknown" /></td><td><input aria-label="Official recommended semester" type="number" min="1" max="20" value={m.recommendedSemester ?? ''} onChange={(e) => updateModule(m.id, { recommendedSemester: e.target.value === '' ? null : Number(e.target.value), plannedSemester: e.target.value === '' ? m.plannedSemester : (m.plannedSemester ?? Number(e.target.value)) })} placeholder="Unknown" /></td><td><input aria-label="Your planned semester" type="number" min="1" max="20" value={m.plannedSemester ?? ''} onChange={(e) => updateModule(m.id, { plannedSemester: e.target.value === '' ? null : Number(e.target.value), semester: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder="Not planned" /></td><td><textarea aria-label="Module description" rows={2} value={m.description} onChange={(e) => updateModule(m.id, { description: e.target.value })} placeholder="Module description" />{(m.sourceEvidence || m.sourceLocation) && <div className="import-source-evidence"><small>{m.sourceEvidence ? `Evidence: ${m.sourceEvidence}` : ''}{m.sourceLocation ? ` (${m.sourceLocation})` : ''}</small><textarea aria-label="Source evidence" rows={2} value={m.sourceEvidence ?? ''} onChange={(e) => updateModule(m.id, { sourceEvidence: e.target.value })} placeholder="Source evidence" /></div>}</td><td><button className="import-icon-button" onClick={() => removeModule(m.id)} aria-label="Remove module"><Trash2 size={14} /></button></td></tr>)}</tbody></table></div>
       <button className="button button-quiet" onClick={() => setModules((list) => [...list, freshModule(list.length + 1)])}><Plus size={15} /> Add module manually</button>
       <div className="import-group-editor"><h3>Electives and choice groups</h3><p>A choice rule is separate from its possible courses; all options are not counted as required.</p>
         <div className="import-group-form"><input aria-label="Group title" value={groupTitle} onChange={(e) => setGroupTitle(e.target.value)} placeholder="Group title" /><select aria-label="Rule" value={groupRule} onChange={(e) => setGroupRule(e.target.value as RequirementGroup['rule'])}><option value="min-ects">At least X ECTS</option><option value="max-ects">At most X ECTS</option><option value="exact-ects">Exactly X ECTS</option><option value="module-count">Choose X modules</option><option value="one-from-each">One from each area</option></select><input aria-label="Target" type="number" min="1" value={groupTarget} onChange={(e) => setGroupTarget(e.target.value)} /><button className="button button-quiet" onClick={() => { if (!groupTitle.trim() || Number(groupTarget) < 1) { setNotice('Enter a group title and target greater than zero.'); return; } setGroups((list) => [...list, createRequirementGroup(groupTitle, groupRule, Number(groupTarget))]); setGroupTitle(''); }}>Add</button></div>
@@ -138,7 +192,7 @@ export default function ImportWizard({ currentPlan, onApply, onClose }: Props) {
     {stage === 'finish' && <section className="import-body">
       {restore ? <div className="import-callout"><FileText size={20} /><div><strong>Backup ready to restore</strong><p>{restore.modules.length} modules and {restore.dependencies.length} relationships. Restoring replaces the active plan.</p></div></div> : <>
         <div className="import-summary"><strong>{modules.filter((m) => m.title.trim()).length} modules</strong><span>{groups.length} choice groups</span><span>{selectedRelations.size} AI relationships selected</span></div>
-        <p className="import-final-warning">Extraction is heuristic. Verify titles, ECTS and choice rules. AI conclusions and cited sources have not been independently verified.</p>
+        <p className="import-final-warning">Review all extracted fields, especially missing ECTS/semesters, choice rules, and evidence. AI claims and cited sources have not been independently verified.</p>
         <fieldset className="import-mode"><legend>Apply import</legend><label><input type="radio" name="import-mode" checked={mode === 'add'} onChange={() => setMode('add')} /> Add to current plan <small>Likely duplicate courses are skipped.</small></label><label><input type="radio" name="import-mode" checked={mode === 'replace'} onChange={() => setMode('replace')} /> Replace current plan <small>Replace modules and relationships.</small></label></fieldset>
       </>}
       {notice && <p className="import-notice">{notice}</p>}

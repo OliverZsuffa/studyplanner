@@ -16,7 +16,14 @@ export interface StudyModule {
   id: string;
   title: string;
   code: string;
-  semester: number;
+  /** Legacy backup field; use plannedSemester for the student's actual plan. */
+  semester?: number;
+  /** Semester the student currently plans to take this module. Unknown stays null. */
+  plannedSemester?: number | null;
+  /** Semester shown in the official study plan, if known. */
+  recommendedSemester?: number | null;
+  sourceEvidence?: string;
+  sourceLocation?: string;
   ects: number;
   status: ModuleStatus;
   description: string;
@@ -48,6 +55,31 @@ export const statusLabels: Record<ModuleStatus, string> = {
   'in-progress': 'In progress',
   completed: 'Completed',
 };
+
+export function getPlannedSemester(module: StudyModule): number | null {
+  return typeof module.plannedSemester === 'number' ? module.plannedSemester : typeof module.semester === 'number' ? module.semester : null;
+}
+
+export function migrateStudyPlan(value: StudyPlan): StudyPlan {
+  return {
+    ...value,
+    modules: value.modules.map((module) => ({
+      ...module,
+      plannedSemester: typeof module.plannedSemester === 'number' ? module.plannedSemester : typeof module.semester === 'number' ? module.semester : null,
+      recommendedSemester: typeof module.recommendedSemester === 'number' ? module.recommendedSemester : null,
+    })),
+  };
+}
+
+export function getNextStepModules(plan: StudyPlan): StudyModule[] {
+  const available = getAvailableModules(plan);
+  const completed = new Set(plan.modules.filter((module) => module.status === 'completed').map((module) => module.id));
+  const moduleIds = new Set(plan.modules.map((module) => module.id));
+  return plan.modules.filter((module) => available.has(module.id))
+    .filter((module) => !plan.dependencies.some((dependency) =>
+      dependency.target === module.id && moduleIds.has(dependency.source) && !completed.has(dependency.source),
+    ));
+}
 
 export function getAvailableModules(plan: StudyPlan): Set<string> {
   const completed = new Set(plan.modules.filter((module) => module.status === 'completed').map((module) => module.id));
