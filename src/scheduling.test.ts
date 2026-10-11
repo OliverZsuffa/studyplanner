@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { availabilityConflict, dateRangesOverlap, findScheduleConflict, getCalendarEvents, getTermForSemester, getTermLabel, migrateStudyPlan, timesOverlap, validTimeRange, type StudyModule, type StudyPlan } from './model';
+import { availabilityConflict, dateRangesOverlap, dateRangesShareWeekday, findScheduleConflict, getCalendarEvents, getTermForSemester, getTermLabel, migrateStudyPlan, timesOverlap, validTimeRange, type StudyModule, type StudyPlan } from './model';
 
 const baseModule = (id: string, semester: number, startDate: string, endDate: string, slotId: string, weekday: 1, startTime: string, endTime: string): StudyModule => ({
   id, title: id, code: id.toUpperCase(), plannedSemester: semester, ects: 5, status: 'not-started', description: '', category: 'Core', availability: 'both',
@@ -41,6 +41,7 @@ describe('weekly schedule validation', () => {
   it('compares date ranges inclusively', () => {
     expect(dateRangesOverlap('2026-10-01','2026-12-01','2026-12-01','2027-02-01')).toBe(true);
     expect(dateRangesOverlap('2026-10-01','2026-11-30','2026-12-01','2027-02-01')).toBe(false);
+    expect(dateRangesShareWeekday('2026-10-05','2026-10-06','2026-10-06','2026-10-10',1)).toBe(false);
     expect(dateRangesOverlap('','2026-11-30','2026-12-01','2027-02-01')).toBe(false);
   });
   it('detects same-weekday clashes only in the same planned semester and intersecting date ranges', () => {
