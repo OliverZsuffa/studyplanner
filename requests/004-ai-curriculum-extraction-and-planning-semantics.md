@@ -189,3 +189,17 @@ A module connected by a recommended edge must not be suggested as the next step 
 - Prefer a clear extraction prompt/schema over more heuristic parsing rules.
 - Keep the existing prerequisite-analysis prompt if useful, but separate it from the new curriculum-extraction prompt: extraction reads the source and returns curriculum facts; prerequisite analysis reasons about the already reviewed module set.
 - The import wizard may share review components between the two AI flows, but do not combine their schemas or stages in a way that confuses extraction facts with relationship suggestions.
+
+
+## Implementation status (2026-10-11)
+
+Implemented on branch `feature/004-ai-curriculum-dual-semesters`, proposed in PR #2.
+
+- Added `studyplanner-curriculum/v1` prompt generation and pasted-JSON validation for module codes, titles, ECTS, official semesters, evidence, source locations, warnings, and choice groups.
+- Added a separate AI extraction stage before the editable review stage. Users attach/paste/link source material in their chosen AI service; the app itself does not upload documents or fetch URLs.
+- Retained local parsing as a fallback and stopped assigning semester 1 by default.
+- Added `plannedSemester` and `recommendedSemester`, legacy saved-plan migration, review controls, source evidence display, and planned-semester workload/filter/graph behavior.
+- Kept formal availability separate from next-step advice; incomplete incoming recommended links now suppress the target from next-step recommendations.
+- Added tests for AI extraction validation, unknown semester behavior, legacy migration, and recommended-dependency filtering.
+
+Verification status: GitHub Actions build/deploy workflow was started for the PR and was still in progress at the time of this update. Final test/build result remains to be confirmed. Limitations: extraction output still needs human factual review; unknown ECTS are represented as 0 in the current numeric model and should be corrected in the review screen before relying on ECTS totals.
