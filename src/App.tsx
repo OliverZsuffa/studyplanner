@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
-  addEdge,
   Background,
   Controls,
   MiniMap,
@@ -9,7 +8,6 @@ import {
   Position,
   useEdgesState,
   useNodesState,
-  useReactFlow,
   type Connection,
   type Edge,
   type Node,
@@ -160,7 +158,6 @@ function App() {
   const graph = useMemo(() => makeGraph(plan, available, selectedId, selectModule), [plan, available, selectedId, selectModule]);
   const [nodes, setNodes, onNodesChange] = useNodesState<ModuleFlowNode>(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(graph.edges);
-  const { fitView } = useReactFlow();
 
   useEffect(() => {
     setNodes((current) => {
@@ -407,24 +404,5 @@ function App() {
 }
 
 export default function AppRoot() {
-  return <ReactFlowProviderWrapper />;
+  return <ReactFlowProvider><App /></ReactFlowProvider>;
 }
-
-function ReactFlowProviderWrapper() {
-  // React Flow hooks must live beneath the provider, so keep the app shell inside it.
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
-  return ready ? <FlowProvider><App /></FlowProvider> : null;
-}
-
-function FlowProvider({ children }: { children: React.ReactNode }) {
-  // Importing the provider statically keeps graph state predictable.
-  const Provider = requireReactFlowProvider();
-  return <Provider>{children}</Provider>;
-}
-
-function requireReactFlowProvider() {
-  return ReactFlowProvider;
-}
-
-import { ReactFlowProvider } from '@xyflow/react';
