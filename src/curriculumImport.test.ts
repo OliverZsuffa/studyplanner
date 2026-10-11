@@ -50,6 +50,15 @@ describe('AI prerequisite response validation', () => {
     expect(result.errors).toHaveLength(2);
   });
 
+  it('rejects formal prerequisite claims without evidence', () => {
+    const result = parseAiRelationships(JSON.stringify({
+      schema: 'studyplanner-prerequisites/v1',
+      relationships: [{ source: 'a', target: 'b', kind: 'formal', rationale: 'Probably required' }],
+    }), modules);
+    expect(result.relationships).toHaveLength(0);
+    expect(result.errors[0]).toContain('needs evidence');
+  });
+
   it('rejects malformed or unexpected JSON schema', () => {
     expect(parseAiRelationships('not json', modules).errors.length).toBeGreaterThan(0);
     expect(parseAiRelationships('{"relationships":[]}', modules).errors[0]).toContain('Expected schema');
