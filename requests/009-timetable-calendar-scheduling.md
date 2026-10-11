@@ -192,4 +192,5 @@ Implemented on `feat/009-timetable-calendar-scheduling`:
 
 ## Verification
 
-Implementation and tests have been committed to the feature branch. CI and production build results are pending the pull-request workflow. The GitHub Pages deployment and a live browser smoke test have not yet been verified.
+- GitHub Actions run [#88](https://github.com/OliverZsuffa/studyplanner/actions/runs/38174710899) passed on 2026-10-11: TypeScript check/production build, unit tests, and Pages artifact upload succeeded.
+- The PR workflow does not deploy the site; post-merge Pages deployment remains unverified. A live browser smoke test has not been performed.
