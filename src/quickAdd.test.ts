@@ -20,6 +20,10 @@ describe('parseQuickCourseLines', () => {
     ]);
   });
 
+  it('keeps commas in a plain course title rather than treating them as columns', () => {
+    expect(parseQuickCourseLines('Politics, Economy and Society', defaults)[0].title).toBe('Politics, Economy and Society');
+  });
+
   it('applies defaults when fields are missing', () => {
     expect(parseQuickCourseLines('Statistics', { ects: '6', semester: '3', category: 'Elective' })[0]).toMatchObject({ ects: '6', semester: '3', category: 'Elective' });
   });
