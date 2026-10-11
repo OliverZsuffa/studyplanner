@@ -81,3 +81,12 @@ The prototype includes a semester Kanban with drag-and-drop plus an accessible s
 - Recommendation is optional personal guidance, not an official evaluation. “No recommendation set” is the default meaning; neutral recommendation pills are hidden to reduce noise.
 - Added explicit progress colours for not started, in progress, and completed, with separate high-contrast dark-mode colours. Import form fields and table cells receive explicit foreground, background, border, and placeholder colours in both themes.
 - Build and test status must be checked in the Request 007 GitHub Actions run before considering this refresh verified.
+
+
+## Guided onboarding and plain-language UX (Request 008)
+
+- A five-step first-run guided tour introduces the overview, electives, semester planning, and course details. It can be skipped, resumed through the top-bar “Guided tour” button, and is marked seen in local browser storage after dismissal.
+- Added concise plain-language descriptions that change with Plan / Map / List views and explained that local browser storage does not sync between devices.
+- Elective help now explains the exact path for adding a missing course; recommendation states are not shown as “Not reviewed” noise in elective options, Kanban cards, or list rows.
+- Renamed “Add module” to “Add course” and clarified the progress and planned-semester labels. No existing planning, import/export, dependency, or grading capabilities were removed.
+- Check Request 008's GitHub Actions build/test and deployment status before claiming it is live.
