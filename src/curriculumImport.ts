@@ -212,11 +212,14 @@ Return ONLY valid JSON matching this schema:
 Rules:
 - recommendedSemester is only the semester explicitly shown in the official study plan; otherwise null.
 - ECTS must be a number only when supported by the source; otherwise null.
-- Keep alternative modules as alternatives in requirementGroups, not as compulsory modules. Do not duplicate alternatives as separate compulsory requirements.
+- Extract every explicitly stated compulsory, elective, specialization, and subject-area requirement as well as individual modules. Requirements are first-class items, not merely categories on courses.
+- Always create a requirementGroups entry for each explicit elective/subject-area requirement, even when its option catalogue is absent or incomplete. Use an empty moduleCodes array when options are unknown, and explain the gap in sourceNote or warnings.
+- Keep distinct or nested elective areas separate; do not merge them just because they belong to the same degree or subject.
+- Separate the required ECTS/module target from the list of alternatives. Listing alternatives does not make all of them compulsory; do not duplicate alternatives as compulsory requirements.
 - Include all relevant module options when the source gives an elective catalogue. If the handbook contains many unrelated module descriptions, prioritize modules in the supplied study plan.
 - Preserve official module codes exactly. Never create a code, ECTS value, semester, quote, source location, or URL.
 - Separate the official recommended semester from formal prerequisites. This extraction schema does not encode prerequisite relationships; do not guess them here.
-- Only report formal elective rules if the source explicitly states them. If unclear, add a warning and do not invent a rule.
+- Only report formal elective rules if the source explicitly states them. If a rule cannot confidently be mapped to this schema, add a warning and do not guess.
 - Use null for unknown scalar fields. Do not include Markdown fences or explanatory prose.
 - JSON schema name must be exactly "studyplanner-curriculum/v1".`;
 }
