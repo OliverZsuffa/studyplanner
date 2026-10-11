@@ -75,11 +75,12 @@ export default function SchedulingPanel({ plan, setPlan, onSelectModule }: Props
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const eventsOnDay = (day: number) => monthEvents.filter(e => Number(e.date.slice(-2)) === day);
+  const tabs: {id: PanelTab; label: string}[] = [{id:'courses',label:'Course sessions'},{id:'timetable',label:'Timetable'},{id:'calendar',label:'Calendar & exams'},{id:'dependencies',label:'Dependencies'}];
 
   return <section className="schedule-panel">
     <div className="schedule-heading"><div><div className="eyebrow">STUDY ORGANISER</div><h2>Timetable & calendar</h2><p>Enter real course information yourself. The planner never guesses teaching dates, exam dates or locations.</p></div></div>
     <div className="schedule-tabs" role="tablist" aria-label="Scheduling sections">
-      {([{id:'courses',label:'Course sessions'},{id:'timetable',label:'Timetable'},{id:'calendar',label:'Calendar & exams'},{id:'dependencies',label:'Dependencies'}] as {id:PanelTab;label:string}[]).map(t => <button type="button" role="tab" aria-selected={tab===t.id} className={tab===t.id?'active':''} key={t.id} onClick={()=>{setTab(t.id);setNotice('');}}>{t.label}</button>)}
+      {tabs.map(t => <button type="button" role="tab" aria-selected={tab===t.id} className={tab===t.id?'active':''} key={t.id} onClick={()=>{setTab(t.id);setNotice('');}}>{t.label}</button>)}
     </div>
     {notice && <div className={notice.startsWith('Impossible') || notice.includes('must') || notice.includes('Enter') ? 'schedule-notice error' : 'schedule-notice'} role="status">{notice}<button type="button" aria-label="Dismiss message" onClick={()=>setNotice('')}>×</button></div>}
 
