@@ -44,7 +44,7 @@ export default function SchedulingPanel({ plan, setPlan, onSelectModule, compact
     if (!copyTargetId || copyTargetId === source.id) return;
     const components = (source.components ?? []).map(component => {
       const idMap = new Map(component.alternatives.map(slot => [slot.id, uid()]));
-      const selectedAlternativeIds = getSelectedAlternativeIds(component).map(id => idMap.get(id)).filter((id): id is string => !!id);
+      const selectedAlternativeIds = getSelectedAlternativeIds(component).map(id => idMap.get(id)).filter(id => id !== undefined);
       return { ...component, id: uid(), alternatives: component.alternatives.map(slot => ({ ...slot, id: idMap.get(slot.id)! })), selectedAlternativeIds, selectedAlternativeId: selectedAlternativeIds[0] };
     });
     if (components.length === 0) { setNotice('There are no teaching components to copy yet.'); return; }
