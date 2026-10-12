@@ -64,4 +64,30 @@ describe('weekly schedule validation', () => {
     const unscheduled = {...module,components:module.components?.map(c=>({...c,startDate:'',endDate:''}))};
     expect(getCalendarEvents(planOf(unscheduled)).filter(e=>e.kind==='teaching')).toHaveLength(0);
   });
+  it('migrates legacy single-slot selections to the multi-slot-compatible schema', () => {
+    const migrated = migrateStudyPlan(planOf(baseModule('a',1,'2026-10-01','2027-02-01','a-slot',1,'10:00','11:00')));
+    expect(migrated.modules[0].components?.[0].requiredTimeslotCount).toBe(1);
+    expect(migrated.modules[0].components?.[0].selectedAlternativeIds).toEqual(['a-slot']);
+    expect(migrated.modules[0].components?.[0].selectedAlternativeId).toBe('a-slot');
+  });
+  it('detects clashes between two selected timeslots belonging to the same multi-slot component', () => {
+    const module = baseModule('a',1,'2026-10-01','2027-02-01','a-slot',1,'10:00','11:00');
+    const component = module.components![0];
+    component.requiredTimeslotCount = 2;
+    component.selectedAlternativeIds = ['a-slot'];
+    component.alternatives.push({id:'a-slot-2',weekday:1,startTime:'10:30',endTime:'11:30',location:'Room 2',online:false});
+    expect(findScheduleConflict(planOf(module),1,'a','component-a','a-slot-2')).toMatchObject({module:{id:'a'},slot:{id:'a-slot'}});
+  });
+  it('generates calendar events for every selected required timeslot', () => {
+    const module = baseModule('a',1,'2026-10-05','2026-10-07','a-slot',1,'10:00','11:00');
+    const component = module.components![0];
+    component.requiredTimeslotCount = 2;
+    component.alternatives.push({id:'a-slot-2',weekday:3,startTime:'12:00',endTime:'13:00',location:'Room 2',online:false});
+    component.selectedAlternativeIds = ['a-slot','a-slot-2'];
+    const teaching = getCalendarEvents(planOf(module)).filter(event=>event.kind==='teaching');
+    expect(teaching).toHaveLength(2);
+    expect(teaching.map(event=>event.date).sort()).toEqual(['2026-10-05','2026-10-07']);
+    expect(new Set(teaching.map(event=>event.id)).size).toBe(2);
+  });
+
 });
