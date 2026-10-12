@@ -75,6 +75,10 @@ export const statusLabels: Record<ModuleStatus, string> = {
   completed: 'Completed',
 };
 
+export function getRecommendedSemester(module: StudyModule): number | null {
+  return module.suggestedSemester !== undefined ? module.suggestedSemester : (module.recommendedSemester ?? null);
+}
+
 export function getPlannedSemester(module: StudyModule): number | null {
   return typeof module.plannedSemester === 'number' ? module.plannedSemester : typeof module.semester === 'number' ? module.semester : null;
 }

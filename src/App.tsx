@@ -15,11 +15,11 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import {
-  ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CheckCircle2, ChevronDown,
+  ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CheckCircle2, ChevronDown, AlertCircle,
   CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List, ClipboardPaste,
   Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award, Columns3, Pencil, ArrowRight, Route,
 } from 'lucide-react';
-import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts } from './model';
+import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts, getRecommendedSemester } from './model';
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
 import QuickAddWizard from './QuickAddWizard';
@@ -65,7 +65,7 @@ function ModuleCard({ data }: NodeProps<ModuleFlowNode>) {
         {module.status === 'completed' ? <CheckCircle2 size={15} /> : available ? <span className="available-dot" /> : null}
       </div>
       <div className="node-title">{module.title}</div>
-      <div className="node-meta"><span>{module.ects} ECTS</span><span className={'node-season season-' + availability}>{availability === 'both' ? 'Winter + summer' : availability === 'winter' ? 'Winter semester' : 'Summer semester'}</span><span>{plannedSemester ? `Planned S${plannedSemester}` : 'Unplanned'}</span>{module.recommendedSemester ? <span>Official S{module.recommendedSemester}</span> : null}</div>
+      <div className="node-meta"><span>{module.ects} ECTS</span><span className={'node-season season-' + availability}>{availability === 'both' ? 'Winter + summer' : availability === 'winter' ? 'Winter semester' : 'Summer semester'}</span><span>{plannedSemester ? `Planned S${plannedSemester}` : 'Unplanned'}</span>{getRecommendedSemester(module) ? <span>Recommended S{getRecommendedSemester(module)}</span> : null}</div>
       <div className="node-bottom">
         <span className={'node-status status-label-' + module.status}>{module.status === 'completed' ? 'Completed' : module.status === 'in-progress' ? 'In progress' : available ? 'Available next' : 'Later'}</span>
         <span className="node-links">{incoming + outgoing > 0 ? incoming + outgoing + ' links' : 'No links'}</span>
@@ -169,7 +169,17 @@ function App() {
   const [newStatus, setNewStatus] = useState<ModuleStatus>('not-started');
   const [newResult, setNewResult] = useState<'unrecorded' | 'passed' | 'failed'>('unrecorded');
   const [newGrade, setNewGrade] = useState('');
-  const [toast, setToast] = useState('');
+  const [toast, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
+  const [draggedModuleId, setDraggedModuleId] = useState<string | null>(null);
+  const [dragHoverSemester, setDragHoverSemester] = useState<number | null | undefined>(undefined);
+  const [newRecommendedSemester, setNewRecommendedSemester] = useState('');
+
+  function notify(message: string, type?: 'success' | 'error' | 'info') {
+    const resolvedType = type ?? (/cannot|conflict|invalid|must be|set your starting|prerequisite|not allowed|failed|unavailable|choose .* first|could not be assigned/i.test(message) ? 'error' : 'success');
+    setToastType(resolvedType);
+    setToastMessage(message);
+  }
   const [newTitle, setNewTitle] = useState('');
   const [newSemester, setNewSemester] = useState('1');
   const [newEcts, setNewEcts] = useState('5');
@@ -211,19 +221,31 @@ function App() {
   const requiredIncoming = selected ? plan.dependencies.filter((dependency) => dependency.target === selected.id && dependency.kind === 'required') : [];
   const recommendedIncoming = selected ? plan.dependencies.filter((dependency) => dependency.target === selected.id && dependency.kind === 'recommended') : [];
 
-  const planningWarnings = useMemo(() => {
+  const planningErrors = useMemo(() => {
     const byId = new Map(plan.modules.map((module) => [module.id, module]));
-    return plan.dependencies.filter((dependency) => dependency.kind === 'required').flatMap((dependency) => {
+    const errors: { id: string; message: string; moduleIds: string[] }[] = [];
+    for (const module of plan.modules) {
+      if (!isModuleVisibleInPlan(plan, module.id)) continue;
+      const semester = getPlannedSemester(module);
+      if (semester === null) continue;
+      if (module.availability && module.availability !== 'both' && !plan.startingTerm) {
+        errors.push({ id: `term-${module.id}`, message: `Set the starting semester and year to verify the seasonal availability of ${module.title}.`, moduleIds: [module.id] });
+        continue;
+      }
+      const conflict = availabilityConflict(module, getTermForSemester(plan.startingTerm, semester));
+      if (conflict) errors.push({ id: `season-${module.id}`, message: conflict, moduleIds: [module.id] });
+    }
+    for (const dependency of plan.dependencies.filter((item) => item.kind === 'required')) {
       const source = byId.get(dependency.source);
       const target = byId.get(dependency.target);
-      if (!source || !target || !isModuleVisibleInPlan(plan, source.id) || !isModuleVisibleInPlan(plan, target.id) || getPlannedSemester(target) === null) return [];
-      const warnings: string[] = [];
-      if (target.status !== 'completed' && source.status !== 'completed') warnings.push(`${source.title} is a required predecessor of ${target.title} but is not completed.`);
+      if (!source || !target || !isModuleVisibleInPlan(plan, source.id) || !isModuleVisibleInPlan(plan, target.id)) continue;
       const sourceSemester = getPlannedSemester(source);
       const targetSemester = getPlannedSemester(target);
-      if (sourceSemester !== null && targetSemester !== null && sourceSemester >= targetSemester) warnings.push(`${source.title} is planned in S${sourceSemester}, not before ${target.title} in S${targetSemester}.`);
-      return warnings.map((message) => ({ id: dependency.id + message, message }));
-    });
+      if (source.status !== 'completed' && sourceSemester !== null && targetSemester !== null && sourceSemester >= targetSemester) {
+        errors.push({ id: dependency.id, message: `${target.title} is planned in S${targetSemester}, but its required prerequisite ${source.title} is planned in S${sourceSemester}. The prerequisite must come first.`, moduleIds: [source.id, target.id] });
+      }
+    }
+    return errors;
   }, [plan]);
 
   useEffect(() => {
@@ -275,7 +297,7 @@ function App() {
 
   const changeRecommendation = (id: string, recommendation: ModuleRecommendation) => {
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? { ...module, recommendation } : module) }));
-    setToast('Recommendation updated');
+    notify('Recommendation updated');
   };
 
   const toggleRequirementOption = (groupId: string, moduleId: string) => {
@@ -285,19 +307,19 @@ function App() {
     if (selected.includes(moduleId)) {
       setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((group) => group.id === groupId ? { ...group, selectedModuleIds: (group.selectedModuleIds ?? []).filter((id) => id !== moduleId) } : group) }));
       if (selectedId === moduleId) setSelectedId(null);
-      setToast('Option removed from selection');
+      notify('Option removed from selection');
       return;
     }
     const check = canSelectRequirementOption(plan, groupId, moduleId);
-    if (!check.allowed) { setToast(check.reason ?? 'This option cannot be selected'); return; }
+    if (!check.allowed) { notify(check.reason ?? 'This option cannot be selected'); return; }
     setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((group) => group.id === groupId ? { ...group, selectedModuleIds: [...(group.selectedModuleIds ?? []), moduleId] } : group) }));
     setSelectedId(moduleId);
-    setToast('Elective option selected');
+    notify('Elective option selected');
   };
 
   const changeStatus = (id: string, status: ModuleStatus) => {
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? { ...module, status, completedThroughPriorStudy: status === 'completed' ? module.completedThroughPriorStudy : false } : module) }));
-    setToast('Progress updated');
+    notify('Progress updated');
   };
 
 
@@ -317,26 +339,50 @@ function App() {
   }, [plan.dependencies]);
 
   const openAddModule = () => {
-    setEditingModuleId(null); setNewTitle(''); setNewCode('CUSTOM'); setNewSemester('1'); setNewEcts('5');
+    setEditingModuleId(null); setNewTitle(''); setNewCode('CUSTOM'); setNewSemester('1'); setNewRecommendedSemester(''); setNewEcts('5');
     setNewCategory('Core'); setNewDescription(''); setNewStatus('not-started'); setNewResult('unrecorded'); setNewGrade(''); setNewDependency('');
     setShowAdd(true);
   };
 
   const openEditModule = (module: StudyModule) => {
     setEditingModuleId(module.id); setNewTitle(module.title); setNewCode(module.code); setNewSemester(String(getPlannedSemester(module) ?? ''));
-    setNewEcts(String(module.ects)); setNewCategory(module.category); setNewDescription(module.description);
+    setNewEcts(String(module.ects)); setNewRecommendedSemester(String(getRecommendedSemester(module) ?? '')); setNewCategory(module.category); setNewDescription(module.description);
     setNewStatus(module.status); setNewResult(module.result ?? 'unrecorded'); setNewGrade(module.grade === undefined ? '' : String(module.grade)); setNewDependency('');
     setShowAdd(true);
   };
 
+  const getPlacementError = (module: StudyModule, semester: number | null): string | null => {
+    if (semester === null) return null;
+    const term = getTermForSemester(plan.startingTerm, semester);
+    if (module.availability && module.availability !== 'both' && !term) return 'Set your starting semester and year in Schedule to verify seasonal availability.';
+    const seasonConflict = availabilityConflict(module, term);
+    if (seasonConflict) return seasonConflict;
+    for (const dependency of plan.dependencies) {
+      if (dependency.kind !== 'required') continue;
+      if (dependency.target === module.id) {
+        const prerequisite = plan.modules.find(item => item.id === dependency.source);
+        const prerequisiteSemester = prerequisite ? getPlannedSemester(prerequisite) : null;
+        if (prerequisite && prerequisite.status !== 'completed' && prerequisiteSemester !== null && prerequisiteSemester >= semester) return `${module.title} cannot be planned in S${semester}: required prerequisite ${prerequisite.title} is planned in S${prerequisiteSemester}.`;
+      }
+      if (dependency.source === module.id) {
+        const dependent = plan.modules.find(item => item.id === dependency.target);
+        const dependentSemester = dependent ? getPlannedSemester(dependent) : null;
+        if (dependent && dependent.status !== 'completed' && dependentSemester !== null && dependentSemester <= semester) return `${module.title} cannot be planned in S${semester}: it is a prerequisite of ${dependent.title}, which is already planned in S${dependentSemester}.`;
+      }
+    }
+    return null;
+  };
+
   const moveModule = (id: string, semester: number | null) => {
     const module = plan.modules.find((item) => item.id === id);
-    const term = semester === null ? null : getTermForSemester(plan.startingTerm, semester);
-    if (module && semester !== null && module.availability && module.availability !== 'both' && !term) { setToast('Set your starting semester and year in Schedule before assigning a winter-only or summer-only course.'); return; }
-    const conflict = module && semester !== null ? availabilityConflict(module, term) : null;
-    if (conflict) { setToast(conflict); return; }
+    if (module && semester !== null) {
+      const conflict = getPlacementError(module, semester);
+      if (conflict) { notify(conflict, 'error'); return; }
+    }
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? withPlannedSemester(module, semester) : module) }));
-    setToast(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
+    setDragHoverSemester(undefined);
+    setDraggedModuleId(null);
+    notify(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
   };
 
   const resetPlannedSemesters = () => {
@@ -345,28 +391,29 @@ function App() {
     setRecommendedPreviewOpen(false);
     setPlanningSelectedIds([]);
     setPlanningReport([]);
-    setToast('All courses are now unplanned. All other course data was preserved.');
+    notify('All courses are now unplanned. All other course data was preserved.');
   };
 
   const applyRecommendedSemesters = () => {
     const nextModules = plan.modules.map(module => {
-      if (getPlannedSemester(module) !== null || module.recommendedSemester == null || !isModuleVisibleInPlan(plan, module.id)) return module;
-      return getModulePlanningBlockReason(plan, module, module.recommendedSemester) ? module : withPlannedSemester(module, module.recommendedSemester);
+      const recommended = getRecommendedSemester(module);
+      if (getPlannedSemester(module) !== null || recommended == null || !isModuleVisibleInPlan(plan, module.id)) return module;
+      return getModulePlanningBlockReason(plan, module, recommended) ? module : withPlannedSemester(module, recommended);
     });
     const assigned = nextModules.filter((module,index)=>getPlannedSemester(module)!==null&&getPlannedSemester(plan.modules[index])===null).length;
-    const skipped = plan.modules.filter(module=>getPlannedSemester(module)===null&&module.recommendedSemester!=null&&isModuleVisibleInPlan(plan,module.id))
-      .map(module=>({title:module.title,reason:getModulePlanningBlockReason(plan,module,module.recommendedSemester!)})).filter(item=>item.reason);
+    const skipped = plan.modules.filter(module=>getPlannedSemester(module)===null&&getRecommendedSemester(module)!=null&&isModuleVisibleInPlan(plan,module.id))
+      .map(module=>({title:module.title,reason:getModulePlanningBlockReason(plan,module,getRecommendedSemester(module)!)})).filter(item=>item.reason);
     setPlan({...plan,modules:nextModules});
     setPlanningReport(skipped.map(item=>({title:item.title,reason:item.reason!})));
     setRecommendedPreviewOpen(false);
-    setToast(`Assigned recommended semesters to ${assigned} course(s). ${skipped.length} course(s) could not be assigned. See the reasons below.`);
+    notify(`Assigned recommended semesters to ${assigned} course(s). ${skipped.length} course(s) could not be assigned. See the reasons below.`);
   };
 
   const addRecommendedForSemester = () => {
     setPlanningReport([]);
     if (semesterPlanningCandidates.length === 0) {
       setRecommendedPreviewOpen(false);
-      setToast(`There are no unplanned courses left to consider for Semester ${targetSemester}.`);
+      notify(`There are no unplanned courses left to consider for Semester ${targetSemester}.`);
       return;
     }
     setPlanningSelectedIds(semesterPlanningCandidates.filter(item => item.reason === null).map(item => item.module.id));
@@ -380,12 +427,12 @@ function App() {
     setPlanningReport([]);
     setRecommendedPreviewOpen(false);
     setPlanningSelectedIds([]);
-    setToast(`Added ${eligible.length} selected course(s) to Semester ${targetSemester}. ${excluded} course(s) were unavailable because of season or prerequisites.`);
+    notify(`Added ${eligible.length} selected course(s) to Semester ${targetSemester}. ${excluded} course(s) were unavailable because of season or prerequisites.`);
   };
 
   const addSelectedCompatibleCourse = () => {
     const course=compatibleExtraCourses.find(module=>module.id===extraCourseId);
-    if(!course){setToast('Choose an eligible additional course first.');return;}
+    if(!course){notify('Choose an eligible additional course first.');return;}
     moveModule(course.id,targetSemester);setExtraCourseId('');setPlanningReport([]);
   };
 
@@ -395,20 +442,21 @@ function App() {
     if (!title) return;
     const semester = newSemester.trim() ? Math.max(1, Math.min(20, Number(newSemester) || 1)) : null;
     const grade = newGrade.trim() ? Number(newGrade) : undefined;
+    const recommendedSemester = newRecommendedSemester.trim() ? Math.max(1, Math.min(20, Number(newRecommendedSemester) || 1)) : null;
     const result = newResult === 'unrecorded' ? undefined : newResult;
     if (editingModuleId) {
       setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === editingModuleId ? {
         ...module, title, code: newCode.trim() || 'CUSTOM', category: newCategory.trim() || 'Other',
         description: newDescription.trim(), ects: Math.max(0, Math.min(60, Number(newEcts) || 0)),
-        semester: semester ?? undefined, plannedSemester: semester, status: newStatus, completedThroughPriorStudy: newStatus === 'completed' ? module.completedThroughPriorStudy : false, result,
+        semester: semester ?? undefined, plannedSemester: semester, suggestedSemester: recommendedSemester, status: newStatus, completedThroughPriorStudy: newStatus === 'completed' ? module.completedThroughPriorStudy : false, result,
         grade: grade !== undefined && Number.isFinite(grade) && grade >= 1 && grade <= 4 ? grade : undefined,
       } : module) }));
-      setToast('Module updated');
+      notify('Module updated');
       setSelectedId(editingModuleId);
     } else {
       const id = 'module-' + Date.now().toString(36);
       const module: StudyModule = {
-        id, title, code: newCode.trim() || 'CUSTOM', semester: semester ?? undefined, plannedSemester: semester, recommendedSemester: null,
+        id, title, code: newCode.trim() || 'CUSTOM', semester: semester ?? undefined, plannedSemester: semester, recommendedSemester: null, suggestedSemester: recommendedSemester,
         ects: Math.max(0, Math.min(60, Number(newEcts) || 0)), status: newStatus,
         description: newDescription.trim(), category: newCategory.trim() || 'Other',
         ...(grade !== undefined && Number.isFinite(grade) && grade >= 1 && grade <= 4 ? { grade } : {}),
@@ -420,7 +468,7 @@ function App() {
       } : null;
       setPlan((current) => ({ ...current, modules: [...current.modules, module], dependencies: dependency ? [...current.dependencies, dependency] : current.dependencies }));
       setSelectedId(id);
-      setToast('Module added');
+      notify('Module added');
     }
     setShowAdd(false);
   };
@@ -504,7 +552,7 @@ function App() {
           </div>
 
           <details className="how-to-use"><summary>How to use your study planner</summary><div className="how-to-steps"><span className="how-to-number">1</span><span><strong>Select a course</strong><small>Open its details</small></span><span className="how-to-arrow">→</span><span className="how-to-number">2</span><span><strong>Update your plan</strong><small>Semester, progress, result and grade</small></span><span className="how-to-arrow">→</span><span className="how-to-number">3</span><span><strong>Arrange the map</strong><small>Drag cards; connect the handles</small></span></div></details>
-          {planningWarnings.length > 0 && <section className="planning-warnings" aria-label="Planning warnings"><strong><CircleHelp size={15} /> Check your module order</strong><ul>{planningWarnings.map((warning) => <li key={warning.id}>{warning.message}</li>)}</ul><small>Only recorded required relationships are checked here. Recommended preparation is guidance, not a formal blocker.</small></section>}
+          {planningErrors.length > 0 && <details className="planning-errors"><summary><AlertCircle size={16} /><span><strong>{planningErrors.length} planning error{planningErrors.length === 1 ? '' : 's'}</strong><small>Only impossible placements are shown, such as a required prerequisite in the same or a later semester.</small></span><ChevronDown size={16} className="errors-chevron" /></summary><ul>{planningErrors.map((error) => <li key={error.id}><AlertCircle size={14} /><span>{error.message}</span></li>)}</ul></details>}
           <div className="planner-toolbar">
             <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a module..." /><kbd>⌘ K</kbd></label>
             <div className="filter-control"><Filter size={15} /><select value={semesterFilter} onChange={(event) => setSemesterFilter(event.target.value)} aria-label="Filter by semester"><option value="all">All semesters</option><option value="unplanned">Unplanned</option>{[...new Set(plan.modules.map((module) => (getPlannedSemester(module) ?? 0)))].filter((semester) => semester > 0).sort((a, b) => a - b).map((semester) => <option key={semester} value={String(semester)}>Semester {semester}</option>)}</select></div>
@@ -530,13 +578,21 @@ function App() {
                   {[...semesters.map((semester) => ({ semester, title: plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm, semester))}` : `Semester ${semester}` })), { semester: null as number | null, title: 'Unplanned' }].map((column) => {
                     const columnModules = filteredModules.filter((module) => getPlannedSemester(module) === column.semester);
                     const total = columnModules.filter((module) => isModuleCountedInPlan(plan, module.id)).reduce((sum, module) => sum + module.ects, 0);
-                    return <section className="kanban-column" key={column.title} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/studyplanner-module'); if (id) moveModule(id, column.semester); }} aria-label={column.title}>
+                    const draggedModule = draggedModuleId ? plan.modules.find(module => module.id === draggedModuleId) : undefined;
+                    const dropError = draggedModule ? getPlacementError(draggedModule, column.semester) : null;
+                    const isHovered = dragHoverSemester === column.semester;
+                    return <section className={'kanban-column ' + (isHovered ? (dropError ? 'drop-invalid' : 'drop-valid') : '')} key={column.title}
+                      onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = dropError ? 'none' : 'move'; setDragHoverSemester(column.semester); }}
+                      onDragLeave={(event) => { if (!(event.relatedTarget instanceof Element) || !event.currentTarget.contains(event.relatedTarget)) setDragHoverSemester(undefined); }}
+                      onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/studyplanner-module'); if (id) moveModule(id, column.semester); setDragHoverSemester(undefined); setDraggedModuleId(null); }}
+                      aria-label={column.title}>
                       <header className="kanban-column-header"><div><strong>{column.title}</strong><small>{columnModules.length} {columnModules.length === 1 ? 'module' : 'modules'}</small></div><span>{total} ECTS</span></header>
+                      {isHovered && draggedModule && <div className={'drop-feedback ' + (dropError ? 'error' : 'valid')} role="status">{dropError ? <><AlertCircle size={15} /><span>{dropError}</span></> : <><CheckCircle2 size={15} /><span>Drop to move into {column.title}</span></>}</div>}
                       <div className="kanban-cards">
-                        {columnModules.map((module) => <article className={'kanban-card ' + (selectedId === module.id ? 'selected' : '')} key={module.id} draggable onDragStart={(event) => { event.dataTransfer.setData('text/studyplanner-module', module.id); event.dataTransfer.effectAllowed = 'move'; }} onClick={() => setSelectedId(module.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(module.id); } }} tabIndex={0} aria-label={`${module.title}, ${module.ects} ECTS`}>
-                          <div className="kanban-card-top"><span>{module.code}</span><button className="kanban-edit" aria-label={`Edit ${module.title}`} onClick={(event) => { event.stopPropagation(); openEditModule(module); }}><Pencil size={13} /></button></div>
+                        {columnModules.map((module) => <article className={'kanban-card ' + (selectedId === module.id ? 'selected' : '') + (planningErrors.some(error => error.moduleIds.includes(module.id)) ? ' has-planning-error' : '')} key={module.id} draggable onDragStart={(event) => { setDraggedModuleId(module.id); setDragHoverSemester(undefined); event.dataTransfer.setData('text/studyplanner-module', module.id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => { setDraggedModuleId(null); setDragHoverSemester(undefined); }} onClick={() => setSelectedId(module.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(module.id); } }} tabIndex={0} aria-label={`${module.title}, ${module.ects} ECTS`}>
+                          <div className="kanban-card-top"><span>{module.code}</span><span className="kanban-card-actions">{planningErrors.some(error => error.moduleIds.includes(module.id)) && <AlertCircle className="card-error-icon" size={14} aria-label="Planning error" />}{getRecommendedSemester(module) && <span className="official-semester-chip">Recommended S{getRecommendedSemester(module)}</span>}<button className="kanban-edit" aria-label={`Edit ${module.title}`} onClick={(event) => { event.stopPropagation(); openEditModule(module); }}><Pencil size={13} /></button></span></div>
                           <strong>{module.title}</strong><p>{module.category} · {module.ects} ECTS</p>
-                          <div className="kanban-card-footer"><span className={'status-pill ' + module.status}>{statusLabels[module.status]}</span>{module.recommendation && module.recommendation !== 'not-reviewed' ? <span className={'recommendation-pill ' + module.recommendation}>{module.recommendation === 'strongly-recommended' ? 'Strongly recommended' : 'Recommended'}</span> : null}{module.recommendedSemester && <small>Official S{module.recommendedSemester}</small>}</div>
+                          <div className="kanban-card-footer"><span className={'status-pill ' + module.status}>{statusLabels[module.status]}</span>{module.recommendation && module.recommendation !== 'not-reviewed' ? <span className={'recommendation-pill ' + module.recommendation}>{module.recommendation === 'strongly-recommended' ? 'Strongly recommended' : 'Recommended'}</span> : null}</div>
                           <label className="kanban-move" onClick={(event) => event.stopPropagation()}>Move to<select aria-label={`Move ${module.title} to semester`} value={getPlannedSemester(module) ?? ''} onChange={(event) => moveModule(module.id, event.target.value === '' ? null : Number(event.target.value))}><option value="">Unplanned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm, semester))}` : `Semester ${semester}`}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? `S${Math.max(...semesters) + 1} · ${getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters) + 1))}` : `Semester ${Math.max(...semesters) + 1}`}</option></select></label>
                         </article>)}
                         {columnModules.length === 0 && <div className="kanban-empty">Drop a module here or use its “Move to” menu.</div>}
@@ -591,10 +647,12 @@ function App() {
                   <section className="course-sessions-shortcut"><div><strong>Teaching sessions & exams</strong><span>{(selected.components ?? []).length} teaching component{(selected.components ?? []).length === 1 ? '' : 's'} · {(selected.exams ?? []).length} exam{(selected.exams ?? []).length === 1 ? '' : 's'}</span></div><button type="button" className="button button-quiet" onClick={() => setShowSessionEditor(true)}><CalendarDays size={15} /> Edit here</button></section>
                   <details className="detail-advanced"><summary>Optional planning guidance <span>{selected.recommendation === 'strongly-recommended' ? 'Strongly recommended' : selected.recommendation === 'recommended' ? 'Recommended' : 'No recommendation set'}</span></summary><p>This is your own optional rating of how useful a course seems. It is not an official assessment and does not change progress, semester, or ECTS.</p><label className="field-label" htmlFor="module-recommendation">Course recommendation</label><select id="module-recommendation" className="status-select detail-field-gap" value={selected.recommendation ?? 'not-reviewed'} onChange={(event) => changeRecommendation(selected.id, event.target.value as ModuleRecommendation)}><option value="not-reviewed">No recommendation set</option><option value="recommended">Recommended</option><option value="strongly-recommended">Strongly recommended</option></select></details>
                   <label className="field-label" htmlFor="planned-semester">WHEN DO YOU PLAN TO TAKE IT?</label>
-                  <select id="planned-semester" className="status-select detail-field-gap" value={getPlannedSemester(selected) ?? ''} onChange={(event) => { const next = event.target.value === '' ? null : Number(event.target.value); const mapped = next === null ? null : getTermForSemester(plan.startingTerm, next); if (next !== null && selected.availability && selected.availability !== 'both' && !mapped) { setToast('Set your starting semester and year in Schedule before assigning a winter-only or summer-only course.'); return; } const problem = next === null ? null : availabilityConflict(selected, mapped); if (problem) { setToast(problem); return; } setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: next ?? undefined, plannedSemester: next } : module) })); }}><option value="">Not planned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? 'S'+semester+' · '+getTermLabel(getTermForSemester(plan.startingTerm, semester)) : 'Semester '+semester}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? 'S'+(Math.max(...semesters)+1)+' · '+getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters)+1)) : 'Semester '+(Math.max(...semesters)+1)}</option></select>
+                  <select id="planned-semester" className="status-select detail-field-gap" value={getPlannedSemester(selected) ?? ''} onChange={(event) => { const next = event.target.value === '' ? null : Number(event.target.value); const problem = getPlacementError(selected, next); if (problem) { notify(problem, 'error'); return; } setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: next ?? undefined, plannedSemester: next } : module) })); }}><option value="">Not planned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? 'S'+semester+' · '+getTermLabel(getTermForSemester(plan.startingTerm, semester)) : 'Semester '+semester}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? 'S'+(Math.max(...semesters)+1)+' · '+getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters)+1)) : 'Semester '+(Math.max(...semesters)+1)}</option></select>
+                  <details className="detail-advanced"><summary>Recommended semester <span>{getRecommendedSemester(selected) ? `S${getRecommendedSemester(selected)}` : 'Not set'}</span></summary><p>Set the semester you recommend for this course. “Apply recommended semesters” uses this value, independently of your actual planned semester.</p><label className="field-label" htmlFor="recommended-semester">RECOMMENDED SEMESTER</label><select id="recommended-semester" className="status-select detail-field-gap" value={getRecommendedSemester(selected) ?? ''} onChange={(event) => { const value = event.target.value === '' ? null : Number(event.target.value); setPlan(current => ({...current, modules: current.modules.map(module => module.id === selected.id ? {...module, suggestedSemester: value} : module)})); notify(value === null ? 'Recommended semester cleared' : `Recommended semester set to S${value}`); }}><option value="">Not set</option>{Array.from({length:20},(_,index)=>index+1).map(semester=><option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm,semester))}` : `Semester ${semester}`}</option>)}</select></details>
+                  <details className="detail-advanced"><summary>Recommended semester <span>{getRecommendedSemester(selected) ? `S${getRecommendedSemester(selected)}` : 'Not set'}</span></summary><p>Set the semester you recommend for this course. “Apply recommended semesters” uses this value, independently of your actual planned semester.</p><label className="field-label" htmlFor="recommended-semester">RECOMMENDED SEMESTER</label><select id="recommended-semester" className="status-select detail-field-gap" value={getRecommendedSemester(selected) ?? ''} onChange={(event) => { const value = event.target.value === '' ? null : Number(event.target.value); setPlan(current => ({...current, modules: current.modules.map(module => module.id === selected.id ? {...module, suggestedSemester: value} : module)})); notify(value === null ? 'Recommended semester cleared' : `Recommended semester set to S${value}`); }}><option value="">Not set</option>{Array.from({length:20},(_,index)=>index+1).map(semester=><option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm,semester))}` : `Semester ${semester}`}</option>)}</select></details>
                   <details className="detail-advanced"><summary>Official source information</summary><p>Official study-plan semester: {selected.recommendedSemester ? `Semester ${selected.recommendedSemester}` : 'Not known'}{selected.sourceLocation ? ` · ${selected.sourceLocation}` : ''}</p>{selected.sourceEvidence && <p><strong>Source evidence</strong><br />{selected.sourceEvidence}</p>}{selected.sourceLocation && /^https?:\/\//i.test(selected.sourceLocation) && <p><a href={selected.sourceLocation} target="_blank" rel="noreferrer">Open source ↗</a></p>}</details>
                   {selected.description && <p className="detail-description">{selected.description}</p>}
-                  {(plan.requirementGroups ?? []).length > 0 && <details className="detail-advanced"><summary>Elective / choice groups <span>{getModuleRequirementGroups(plan, selected.id).length ? 'Linked' : 'Not linked'}</span></summary><p>Tick a group to add this course as one of its options. Then choose whether you plan to take it.</p>{(plan.requirementGroups ?? []).map((group) => { const linked = group.moduleIds.includes(selected.id); const chosen = (group.selectedModuleIds ?? []).includes(selected.id); return <div className="module-group-link" key={group.id}><label><input type="checkbox" checked={linked} onChange={(event) => { const checked = event.target.checked; setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((item) => item.id === group.id ? { ...item, moduleIds: checked ? [...item.moduleIds, selected.id] : item.moduleIds.filter((id) => id !== selected.id), selectedModuleIds: checked ? (item.selectedModuleIds ?? []) : (item.selectedModuleIds ?? []).filter((id) => id !== selected.id) } : item) })); }} />{group.title}</label>{linked && <label className="module-group-choice"><input type="checkbox" checked={chosen} onChange={(event) => { if (event.target.checked) { const check = canSelectRequirementOption(plan, group.id, selected.id); if (!check.allowed) { setToast(check.reason ?? 'This course cannot be selected yet'); return; } } toggleRequirementOption(group.id, selected.id); }} />Plan to take</label>}</div>; })}</details>}
+                  {(plan.requirementGroups ?? []).length > 0 && <details className="detail-advanced"><summary>Elective / choice groups <span>{getModuleRequirementGroups(plan, selected.id).length ? 'Linked' : 'Not linked'}</span></summary><p>Tick a group to add this course as one of its options. Then choose whether you plan to take it.</p>{(plan.requirementGroups ?? []).map((group) => { const linked = group.moduleIds.includes(selected.id); const chosen = (group.selectedModuleIds ?? []).includes(selected.id); return <div className="module-group-link" key={group.id}><label><input type="checkbox" checked={linked} onChange={(event) => { const checked = event.target.checked; setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((item) => item.id === group.id ? { ...item, moduleIds: checked ? [...item.moduleIds, selected.id] : item.moduleIds.filter((id) => id !== selected.id), selectedModuleIds: checked ? (item.selectedModuleIds ?? []) : (item.selectedModuleIds ?? []).filter((id) => id !== selected.id) } : item) })); }} />{group.title}</label>{linked && <label className="module-group-choice"><input type="checkbox" checked={chosen} onChange={(event) => { if (event.target.checked) { const check = canSelectRequirementOption(plan, group.id, selected.id); if (!check.allowed) { notify(check.reason ?? 'This course cannot be selected yet'); return; } } toggleRequirementOption(group.id, selected.id); }} />Plan to take</label>}</div>; })}</details>}
                   <label className="field-label" htmlFor="module-status">COURSE PROGRESS</label>
                   <select id="module-status" className="status-select" value={selected.status} onChange={(event) => changeStatus(selected.id, event.target.value as ModuleStatus)}>
                     <option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option>
@@ -625,7 +683,7 @@ function App() {
           </div>
           {view === 'graph' && <DependencyEditor plan={plan} setPlan={setPlan} />}
 
-          <div className="bottom-note"><span><span className="sample-badge"><CircleHelp size={12} /> SAMPLE DATA</span> {plan.institution}</span><button onClick={() => { if (window.confirm('Reset your plan and progress to the original sample? This cannot be undone.')) { setPlan(samplePlan); setSelectedId('algorithms'); setToast('Sample plan restored'); } }}><Settings2 size={14} /> Reset sample</button></div>
+          <div className="bottom-note"><span><span className="sample-badge"><CircleHelp size={12} /> SAMPLE DATA</span> {plan.institution}</span><button onClick={() => { if (window.confirm('Reset your plan and progress to the original sample? This cannot be undone.')) { setPlan(samplePlan); setSelectedId('algorithms'); notify('Sample plan restored'); } }}><Settings2 size={14} /> Reset sample</button></div>
         </section>
 
         <section className="next-strip">
@@ -636,20 +694,21 @@ function App() {
 
       {tourOpen && <div className="tour-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) finishTour(); }}><section className="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title"><div className="tour-dialog-top"><span className="tour-icon"><Route size={20} /></span><button type="button" className="icon-button" aria-label="Close guided tour" onClick={finishTour}><X size={17} /></button></div><div className="tour-eyebrow">{tourSteps[tourStep].eyebrow}</div><h2 id="tour-title">{tourSteps[tourStep].title}</h2><p>{tourSteps[tourStep].body}</p><div className="tour-tip"><Sparkles size={15} /><span>{tourSteps[tourStep].tip}</span></div><div className="tour-progress" aria-label={`Step ${tourStep + 1} of ${tourSteps.length}`}>{tourSteps.map((step, index) => <span key={step.eyebrow} className={index <= tourStep ? 'active' : ''} />)}</div><div className="tour-actions"><button type="button" className="button button-quiet" onClick={finishTour}>Skip tour</button><div>{tourStep > 0 && <button type="button" className="button button-quiet" onClick={() => setTourStep((step) => step - 1)}>Back</button>}<button type="button" className="button button-primary" onClick={() => tourStep === tourSteps.length - 1 ? finishTour() : setTourStep((step) => step + 1)}>{tourStep === tourSteps.length - 1 ? 'Start planning' : 'Next'} <ArrowRight size={15} /></button></div></div></section></div>}
       {showSessionEditor && selected && <div className="modal-backdrop session-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSessionEditor(false); }}><section className="session-editor-modal" role="dialog" aria-modal="true" aria-label={`Teaching sessions and exams for ${selected.title}`}><div className="session-editor-modal-heading"><div><div className="eyebrow">COURSE DETAILS</div><h2>{selected.title}</h2><p>Edit sessions and exams without leaving your course card.</p></div><button type="button" className="icon-button" aria-label="Close session editor" onClick={() => setShowSessionEditor(false)}><X size={18} /></button></div><SchedulingPanel plan={plan} setPlan={setPlan} compactModuleId={selected.id} compact /></section></div>}
-      {showQuickAdd && <QuickAddWizard currentPlan={plan} onClose={() => setShowQuickAdd(false)} onApply={(modules) => { setPlan((current) => ({ ...current, modules: [...current.modules, ...modules] })); setSelectedId(modules[0]?.id ?? selectedId); setShowQuickAdd(false); setToast(`Added ${modules.length} ${modules.length === 1 ? 'course' : 'courses'}`); }} />}
-      {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(migrateStudyPlan(imported)); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); setToast('Study plan imported'); }} />}
+      {showQuickAdd && <QuickAddWizard currentPlan={plan} onClose={() => setShowQuickAdd(false)} onApply={(modules) => { setPlan((current) => ({ ...current, modules: [...current.modules, ...modules] })); setSelectedId(modules[0]?.id ?? selectedId); setShowQuickAdd(false); notify(`Added ${modules.length} ${modules.length === 1 ? 'course' : 'courses'}`); }} />}
+      {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(migrateStudyPlan(imported)); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); notify('Study plan imported'); }} />}
       {showAdd && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><form className="add-modal" onSubmit={addModule}>
         <div className="modal-heading"><div><div className="eyebrow">YOUR STUDY PLAN</div><h2>{editingModuleId ? 'Edit module' : 'Add a module'}</h2><p>Keep course details and planning information together.</p></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
         <label className="form-label">Module name<input autoFocus required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="e.g. Applied Statistics" /></label>
         <div className="form-row"><label className="form-label">Module code<input value={newCode} onChange={(event) => setNewCode(event.target.value)} placeholder="e.g. IN0001" /></label><label className="form-label">Category<input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="e.g. Computer science" /></label></div>
-        <div className="form-row"><label className="form-label">Planned semester<input type="number" min="1" max="20" value={newSemester} onChange={(event) => setNewSemester(event.target.value)} placeholder="Unplanned" /><small>Leave blank to keep this module unplanned.</small></label><label className="form-label">ECTS credits<input type="number" min="0" max="60" step=".5" value={newEcts} onChange={(event) => setNewEcts(event.target.value)} required /></label></div>
+        <div className="form-row"><label className="form-label">Planned semester<input type="number" min="1" max="20" value={newSemester} onChange={(event) => setNewSemester(event.target.value)} placeholder="Unplanned" /><small>Your current intended semester.</small></label><label className="form-label">ECTS credits<input type="number" min="0" max="60" step=".5" value={newEcts} onChange={(event) => setNewEcts(event.target.value)} required /></label></div>
+        <label className="form-label">Recommended semester<select value={newRecommendedSemester} onChange={(event) => setNewRecommendedSemester(event.target.value)}><option value="">Not set</option>{Array.from({length:20},(_,index)=>index+1).map(semester=><option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm,semester))}` : `Semester ${semester}`}</option>)}</select><small>Your recommendation is separate from the semester you actually plan to take the course.</small></label>
         <label className="form-label">Description<textarea rows={3} value={newDescription} onChange={(event) => setNewDescription(event.target.value)} placeholder="What does this module cover?" /></label>
         <div className="form-row"><label className="form-label">Progress<select value={newStatus} onChange={(event) => setNewStatus(event.target.value as ModuleStatus)}><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option></select></label><label className="form-label">Exam result<select value={newResult} onChange={(event) => setNewResult(event.target.value as 'unrecorded' | 'passed' | 'failed')}><option value="unrecorded">Not recorded</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label></div>
         <label className="form-label">Grade <small>Optional, German scale 1.0–4.0 for the weighted average. Failed or ungraded courses are excluded.</small><input type="number" min="1" max="4" step=".1" value={newGrade} onChange={(event) => setNewGrade(event.target.value)} placeholder="e.g. 2.3" /></label>
         {!editingModuleId && <label className="form-label">Recommended preparation <span className="optional-label">OPTIONAL</span><select value={newDependency} onChange={(event) => setNewDependency(event.target.value)}><option value="">No connection yet</option>{plan.modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select><small>This creates a suggested connection, not a formal prerequisite.</small></label>}
         <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="button button-primary"><FilePlus2 size={16} /> {editingModuleId ? 'Save changes' : 'Add to plan'}</button></div>
       </form></div>}
-      {toast && <div className="toast"><CheckCircle2 size={16} /> {toast}<button aria-label="Dismiss notification" onClick={() => setToast('')}><X size={14} /></button></div>}
+      {toast && <div className={'toast toast-' + toastType} role={toastType === 'error' ? 'alert' : 'status'}>{toastType === 'error' ? <AlertCircle size={17} /> : toastType === 'info' ? <CircleHelp size={17} /> : <CheckCircle2 size={17} />} <span>{toast}</span><button aria-label="Dismiss notification" onClick={() => notify('')}><X size={14} /></button></div>}
     </div>
   );
 }
