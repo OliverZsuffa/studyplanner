@@ -28,4 +28,4 @@ Replace the recommended-semester-only preview with a genuine step-by-step course
 - Build, tests, and deployment workflow pass.
 
 ## Status
-Implementation prepared on branch `fix/semester-simulation-and-map-routing`. Awaiting build/test verification through GitHub Actions.
+Implemented in [PR #13](https://github.com/OliverZsuffa/studyplanner/pull/13). The initial PR workflow passed type-check/build and unit tests. Final merge and Pages deployment verification are pending.
