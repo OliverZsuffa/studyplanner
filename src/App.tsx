@@ -206,9 +206,20 @@ function App() {
   const semesterTotals = useMemo(() => semesters.map((semester) => { const modules = plan.modules.filter((module) => getPlannedSemester(module) === semester && isModuleCountedInPlan(plan, module.id)); return { semester, modules, ects: getSemesterWorkloadEcts(modules), completed: modules.filter((module) => module.completedThroughPriorStudy !== true && module.result === 'passed').reduce((sum, module) => sum + module.ects, 0) }; }), [plan, semesters]);
   const selected = plan.modules.find((module) => module.id === selectedId) ?? null;
   const targetSemester = Math.max(1, Math.min(20, Number(planningSemester) || 1));
+  const getReplanningBlockReason = (module: StudyModule, semester: number): string | null => {
+    const basicReason = getModulePlanningBlockReason(plan, module, semester);
+    if (basicReason) return basicReason;
+    for (const dependency of plan.dependencies) {
+      if (dependency.kind !== 'required' || dependency.source !== module.id) continue;
+      const dependent = plan.modules.find(item => item.id === dependency.target);
+      const dependentSemester = dependent ? getPlannedSemester(dependent) : null;
+      if (dependent && dependent.status !== 'completed' && dependentSemester !== null && dependentSemester <= semester) return `${module.title} cannot be moved to S${semester}: it is a prerequisite of ${dependent.title}, which is planned in S${dependentSemester}.`;
+    }
+    return null;
+  };
   const semesterPlanningCandidates = plan.modules
     .filter(module => isModuleVisibleInPlan(plan, module.id) && (getPlannedSemester(module) === null || (includeAssignedCourses && getPlannedSemester(module) !== targetSemester)))
-    .map(module => ({ module, currentSemester: getPlannedSemester(module), reason: getModulePlanningBlockReason(plan, module, targetSemester) ?? getPlacementError(module, targetSemester) }))
+    .map(module => ({ module, currentSemester: getPlannedSemester(module), reason: getReplanningBlockReason(module, targetSemester) }))
     .sort((a,b) => Number(a.reason !== null) - Number(b.reason !== null) || a.module.title.localeCompare(b.module.title));
   const compatibleExtraCourses = semesterPlanningCandidates.filter(item => item.reason === null).map(item => item.module);
   const recommendedSemesterPreview = semesterPlanningCandidates;
@@ -451,6 +462,8 @@ function App() {
     const recommendedSemester = newRecommendedSemester.trim() ? Math.max(1, Math.min(20, Number(newRecommendedSemester) || 1)) : null;
     const result = newResult === 'unrecorded' ? undefined : newResult;
     if (editingModuleId) {
+      const editedModule = plan.modules.find(module => module.id === editingModuleId);
+      if (editedModule) { const placementProblem = getPlacementError(editedModule, semester); if (placementProblem) { notify(placementProblem, 'error'); return; } }
       setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === editingModuleId ? {
         ...module, title, code: newCode.trim() || 'CUSTOM', category: newCategory.trim() || 'Other',
         description: newDescription.trim(), ects: Math.max(0, Math.min(60, Number(newEcts) || 0)),
