@@ -572,3 +572,25 @@ button, select, input { touch-action: manipulation; }
   .button { transition: none; }
   .kanban-board { scroll-behavior: auto; }
 }
+
+
+/* Contextual course-session editor: keep scheduling edits in the selected course workflow. */
+.course-sessions-shortcut { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:14px 0 18px; padding:12px; border:1px solid #e5e9e2; border-radius:10px; background:#f8faf7; }
+.course-sessions-shortcut > div { display:flex; min-width:0; flex-direction:column; gap:4px; }
+.course-sessions-shortcut strong { color:#35473a; font-size:11px; }
+.course-sessions-shortcut span { color:#818c81; font-size:10px; }
+.course-sessions-shortcut .button { flex-shrink:0; }
+.session-editor-backdrop { z-index:1000; padding:20px; }
+.session-editor-modal { width:min(980px,100%); max-height:min(92vh,1000px); overflow:auto; padding:22px; border:1px solid #e2e8df; border-radius:16px; background:var(--surface,#fff); box-shadow:0 24px 80px #18251c38; }
+.session-editor-modal-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px; }
+.session-editor-modal-heading h2 { margin:5px 0; }
+.session-editor-modal-heading p { margin:0; color:var(--muted,#7d867d); font-size:12px; }
+.schedule-panel-compact .schedule-content { padding:0; }
+.schedule-panel-compact .schedule-card { box-shadow:none; }
+@media (max-width: 680px) {
+  .session-editor-backdrop { align-items:flex-end; padding:0; }
+  .session-editor-modal { width:100%; max-height:94dvh; padding:16px 12px calc(16px + env(safe-area-inset-bottom)); border-radius:18px 18px 0 0; }
+  .session-editor-modal-heading h2 { font-size:21px; }
+  .course-sessions-shortcut { align-items:flex-start; }
+  .course-sessions-shortcut .button { padding:9px; }
+}
