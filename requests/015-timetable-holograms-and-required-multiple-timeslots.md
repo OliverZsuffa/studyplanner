@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation in progress on `fix/mobile-timetable-move`. Verification is pending the GitHub Actions build and unit-test workflow. A live browser interaction test has not yet been performed.
+Implemented and merged in [PR #16](https://github.com/OliverZsuffa/studyplanner/pull/16). TypeScript/build and unit tests passed in [GitHub Actions run #38290910834](https://github.com/OliverZsuffa/studyplanner/actions/runs/38290910834). The post-merge Pages deployment succeeded in [run #38291016987](https://github.com/OliverZsuffa/studyplanner/actions/runs/38291016987). A live browser interaction test has not yet been performed.
 
 ## User requirements
 
@@ -24,7 +24,7 @@ Implementation in progress on `fix/mobile-timetable-move`. Verification is pendi
 
 ## Verification checklist
 
-- [ ] TypeScript check and production build pass.
-- [ ] Unit tests pass.
-- [ ] GitHub Pages workflow succeeds.
+- [x] TypeScript check and production build pass.
+- [x] Unit tests pass.
+- [x] GitHub Pages workflow succeeds.
 - [ ] Browser smoke test confirms desktop drag and drop, touch tap-to-pick, multi-slot selection, and invalid target rejection.
