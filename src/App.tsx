@@ -102,6 +102,21 @@ function makeGraph(plan: StudyPlan, nextStepIds: Set<string>, selectedId: string
   const layers = new Map<number, string[]>();
   plan.modules.forEach(m => { const d = depth.get(m.id) ?? 0; layers.set(d, [...(layers.get(d) ?? []), m.id]); });
   for (const layer of layers.values()) layer.sort((a,b) => (byId.get(a)?.title ?? a).localeCompare(byId.get(b)?.title ?? b));
+  const layerIndex = new Map<string, number>();
+  for (let pass = 0; pass < 3; pass++) {
+    for (const [layerDepth, layerIds] of [...layers.entries()].sort(([a],[b]) => a - b)) {
+      if (layerDepth === 0) { layerIds.forEach((id,index) => layerIndex.set(id,index)); continue; }
+      layerIds.sort((a,b) => {
+        const average = (id: string) => {
+          const parents = incoming.get(id) ?? [];
+          const values = parents.map(parent => layerIndex.get(parent)).filter((value): value is number => value !== undefined);
+          return values.length ? values.reduce((sum,value)=>sum+value,0)/values.length : Number.MAX_SAFE_INTEGER;
+        };
+        return average(a) - average(b) || (byId.get(a)?.title ?? a).localeCompare(byId.get(b)?.title ?? b);
+      });
+      layerIds.forEach((id,index) => layerIndex.set(id,index));
+    }
+  }
   const positions = new Map<string, {x:number;y:number}>();
   [...layers.entries()].sort(([a],[b])=>a-b).forEach(([layer, layerIds])=>layerIds.forEach((id,index)=>positions.set(id,{x:80+layer*340,y:70+index*174})));
   const nodes: ModuleFlowNode[] = plan.modules.map(module => ({
@@ -572,6 +587,7 @@ function App() {
               )}
             </aside>
           </div>
+          {view === 'graph' && <DependencyEditor plan={plan} setPlan={setPlan} />}
 
           <div className="bottom-note"><span><span className="sample-badge"><CircleHelp size={12} /> SAMPLE DATA</span> {plan.institution}</span><button onClick={() => { if (window.confirm('Reset your plan and progress to the original sample? This cannot be undone.')) { setPlan(samplePlan); setSelectedId('algorithms'); setToast('Sample plan restored'); } }}><Settings2 size={14} /> Reset sample</button></div>
         </section>
