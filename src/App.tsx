@@ -459,7 +459,7 @@ function App() {
             <div>
               <div className="eyebrow section-eyebrow">THE BIG PICTURE</div>
               <h2>Your study map</h2>
-              <p>{view === 'schedule' ? 'Set course availability, enter teaching sessions and exams, resolve timetable conflicts, and manage dependency connections.' : view === 'kanban' ? 'Move courses between semester columns. Select a course to update its progress and exam results.' : view === 'graph' ? 'Explore course relationships. Solid lines mean required prerequisites; dashed lines mean recommended preparation.' : 'Search and scan courses in a compact list. Select any course to edit its details.'}</p>
+              <p>{view === 'schedule' ? 'Set course availability, organise teaching sessions and exams, and resolve timetable conflicts.' : view === 'kanban' ? 'Move courses between semester columns. Select a course to update its progress and exam results.' : view === 'graph' ? 'Explore course relationships. Solid lines mean required prerequisites; dashed lines mean recommended preparation.' : 'Search and scan courses in a compact list. Select any course to edit its details.'}</p>
             </div>
             <div className="view-toggle" aria-label="Choose view">
               <button className={view === 'kanban' ? 'active' : ''} onClick={() => setView('kanban')}><Columns3 size={15} /> Plan</button>
