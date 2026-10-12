@@ -653,3 +653,32 @@ button, select, input { touch-action: manipulation; }
   .graph-legend { right:10px; left:10px; max-width:none; }
   .prior-study-toggle { align-items:flex-start; }
 }
+
+
+/* Request 011 follow-up: transparent course-addition preview and exclusion reasons. */
+.semester-preview,.planning-report { display:flex; flex-direction:column; gap:10px; margin-top:12px; padding:13px; border:1px solid #dfe7dd; border-radius:10px; background:#fff; }
+.semester-preview > div:first-child { display:flex; flex-direction:column; gap:5px; }
+.semester-preview > div:first-child strong,.planning-report > strong { color:#334638; font-size:12px; }
+.semester-preview p { margin:0; color:#7d897d; font-size:10px; line-height:1.5; }
+.semester-preview ul,.planning-report ul { display:flex; flex-direction:column; gap:7px; margin:0; padding:0; list-style:none; }
+.semester-preview li,.planning-report li { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:9px; border-radius:7px; background:#f7f9f6; }
+.semester-preview li > span:first-child,.planning-report li { min-width:0; }
+.semester-preview li > span:first-child { display:flex; flex-direction:column; gap:3px; }
+.semester-preview li strong,.planning-report li strong { color:#394a3c; font-size:10px; }
+.semester-preview li small { color:#879187; font-size:9px; }
+.semester-preview li > span:last-child,.planning-report li span { color:#788579; font-size:10px; line-height:1.45; text-align:right; }
+.semester-preview .preview-eligible { border-left:3px solid #4c8a5a; }
+.semester-preview .preview-excluded { border-left:3px solid #d5a35b; }
+.semester-preview-actions { display:flex; justify-content:flex-end; gap:8px; }
+.planning-report li { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.5fr); }
+.planning-report li span { text-align:left; }
+.dark-mode .semester-preview,.dark-mode .planning-report { background:#1b232d; border-color:#36414e; }
+.dark-mode .semester-preview > div:first-child strong,.dark-mode .planning-report > strong,.dark-mode .semester-preview li strong,.dark-mode .planning-report li strong { color:#dce7df; }
+.dark-mode .semester-preview li,.dark-mode .planning-report li { background:#222d38; }
+@media (max-width:600px) {
+  .semester-preview li { flex-direction:column; gap:6px; }
+  .semester-preview li > span:last-child { text-align:left; }
+  .planning-report li { grid-template-columns:minmax(0,1fr); gap:4px; }
+  .semester-preview-actions { flex-direction:column-reverse; }
+  .semester-preview-actions .button { width:100%; }
+}
