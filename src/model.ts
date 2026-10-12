@@ -294,6 +294,29 @@ export function getModulePlanningBlockReason(plan: StudyPlan, module: StudyModul
   return null;
 }
 
+/** Build semester-planning candidates, optionally including courses already assigned elsewhere. */
+export function getSemesterPlanningCandidates(plan: StudyPlan, semester: number, includeAssignedCourses = false): { module: StudyModule; currentSemester: number | null; reason: string | null }[] {
+  return plan.modules
+    .filter(module => isModuleVisibleInPlan(plan, module.id) && (getPlannedSemester(module) === null || (includeAssignedCourses && getPlannedSemester(module) !== semester)))
+    .map(module => {
+      const currentSemester = getPlannedSemester(module);
+      let reason = getModulePlanningBlockReason(plan, module, semester);
+      if (!reason) {
+        for (const dependency of plan.dependencies) {
+          if (dependency.kind !== 'required' || dependency.source !== module.id) continue;
+          const dependent = plan.modules.find(item => item.id === dependency.target);
+          const dependentSemester = dependent ? getPlannedSemester(dependent) : null;
+          if (dependent && dependent.status !== 'completed' && dependentSemester !== null && dependentSemester <= semester) {
+            reason = `${module.title} cannot be moved to S${semester}: it is a prerequisite of ${dependent.title}, which is planned in S${dependentSemester}.`;
+            break;
+          }
+        }
+      }
+      return { module, currentSemester, reason };
+    })
+    .sort((a, b) => Number(a.reason !== null) - Number(b.reason !== null) || a.module.title.localeCompare(b.module.title));
+}
+
 /** A module can be offered in the selected season, or in both seasons. */
 export function matchesSeasonFilter(module: StudyModule, season: 'winter' | 'summer' | 'all'): boolean {
   return season === 'all' || !module.availability || module.availability === 'both' || module.availability === season;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getRecommendedSemester, getProgress, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts, type StudyModule, type StudyPlan } from './model';
+import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getRecommendedSemester, getProgress, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, withPlannedSemester, getModulePlanningBlockReason, getSemesterPlanningCandidates, matchesSeasonFilter, getSemesterWorkloadEcts, type StudyModule, type StudyPlan } from './model';
 
 const plan: StudyPlan = {
   name: 'Test',
@@ -207,6 +207,36 @@ describe('prior-study credit and seasonal semester planning', () => {
     };
     expect(getModulePlanningBlockReason(studyPlan, studyPlan.modules[1], 2)).toBeNull();
     expect(studyPlan.modules[0].status).toBe('not-started');
+  });
+
+  it('only includes unplanned courses by default and can opt into courses assigned elsewhere', () => {
+    const studyPlan: StudyPlan = {
+      ...plan,
+      modules: [
+        { ...plan.modules[0], id: 'unplanned', status: 'not-started', plannedSemester: null, semester: undefined },
+        { ...plan.modules[1], id: 'already-planned', status: 'not-started', plannedSemester: 3, semester: 3 },
+        { ...plan.modules[2], id: 'already-target', status: 'not-started', plannedSemester: 2, semester: 2 },
+      ],
+      dependencies: [],
+    };
+    expect(getSemesterPlanningCandidates(studyPlan, 2).map(item => item.module.id)).toEqual(['unplanned']);
+    expect(getSemesterPlanningCandidates(studyPlan, 2, true).map(item => item.module.id).sort()).toEqual(['already-planned', 'unplanned']);
+    expect(getSemesterPlanningCandidates(studyPlan, 2, true).find(item => item.module.id === 'already-planned')).toMatchObject({ currentSemester: 3, reason: null });
+  });
+
+  it('flags replanning a prerequisite into the same semester as its dependent', () => {
+    const studyPlan: StudyPlan = {
+      ...plan,
+      modules: [
+        { ...plan.modules[0], id: 'foundation', title: 'Foundation', status: 'not-started', plannedSemester: 3, semester: 3 },
+        { ...plan.modules[1], id: 'follow-up', title: 'Follow-up', status: 'not-started', plannedSemester: 2, semester: 2 },
+      ],
+      dependencies: [{ id: 'foundation-follow-up', source: 'foundation', target: 'follow-up', kind: 'required', provenance: 'official' }],
+    };
+    const candidate = getSemesterPlanningCandidates(studyPlan, 2, true).find(item => item.module.id === 'foundation');
+    expect(candidate?.currentSemester).toBe(3);
+    expect(candidate?.reason).toContain('prerequisite of Follow-up');
+    expect(getPlannedSemester(studyPlan.modules[0])).toBe(3);
   });
 
   it('does not treat recommended links as formal blockers when assigning a semester', () => {

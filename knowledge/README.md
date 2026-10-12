@@ -123,3 +123,12 @@ The prototype includes a semester Kanban with drag-and-drop plus an accessible s
 - Request 011 implementation is tracked in [PR #11](https://github.com/OliverZsuffa/studyplanner/pull/11). Only report the work as complete after the latest build and tests pass, the PR is merged, and the Pages deployment and live site are verified.
 
 - Validation feedback must be semantic and persistent where useful: impossible season or prerequisite-order placements are errors, highlighted red on affected courses and described in a collapsible error list. Never warn merely because a prerequisite is not yet completed. Valid drop targets are green, invalid targets red. Keep dense controls and secondary course details collapsible.
+
+## Consistent editing, semester replanning, and timetable drag targets (Request 014)
+
+- The course editor now includes course recommendation, seasonal availability, and the prior-study completion flag alongside existing metadata, planned semester, personal recommended semester, progress, result, and grade fields. Course details continue to open the same editor; teaching components and exams remain accessible through the scheduling editor in course context.
+- Editing a planned semester through the course editor now uses the same season and required-prerequisite ordering checks as other assignment paths.
+- The semester planner has an opt-in to include courses already assigned to another semester. The shared `getSemesterPlanningCandidates` helper reports each candidate's current semester and any blocking reason. The preview distinguishes additions from moves, and changes are applied only after confirmation. With the option off, existing assignments are excluded.
+- Timetable sessions are draggable. During a drag, each saved alternative appears at its actual weekday/time as a destination overlay. Valid targets are green, blocked targets are red, and the drop handler reuses the existing schedule conflict validation. The existing selector and alternative chips remain available without drag-and-drop.
+- Tests cover the default versus opt-in candidate list and block moving a prerequisite into the same semester as a dependent. TypeScript checking, the production build, unit tests, and Pages artifact upload passed in [GitHub Actions run #38248411061](https://github.com/OliverZsuffa/studyplanner/actions/runs/38248411061). The post-merge Pages deployment and live browser behaviour must be checked separately.
+
