@@ -366,7 +366,7 @@ function App() {
       setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === editingModuleId ? {
         ...module, title, code: newCode.trim() || 'CUSTOM', category: newCategory.trim() || 'Other',
         description: newDescription.trim(), ects: Math.max(0, Math.min(60, Number(newEcts) || 0)),
-        semester: semester ?? undefined, plannedSemester: semester, status: newStatus, result,
+        semester: semester ?? undefined, plannedSemester: semester, status: newStatus, completedThroughPriorStudy: newStatus === 'completed' ? module.completedThroughPriorStudy : false, result,
         grade: grade !== undefined && Number.isFinite(grade) && grade >= 1 && grade <= 4 ? grade : undefined,
       } : module) }));
       setToast('Module updated');
