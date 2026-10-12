@@ -7,7 +7,7 @@ export type StudyTerm = { season: 'winter' | 'summer'; year: number };
 export type CourseComponentType = 'Lecture' | 'Tutorial' | 'Exercise class' | 'Practical / lab' | 'Seminar' | 'Project' | 'Other';
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export interface TimeSlotAlternative { id: string; weekday: Weekday; startTime: string; endTime: string; location: string; online: boolean; }
-export interface CourseComponent { id: string; type: CourseComponentType; name: string; startDate: string; endDate: string; alternatives: TimeSlotAlternative[]; selectedAlternativeId?: string; }
+export interface CourseComponent { id: string; type: CourseComponentType; name: string; startDate: string; endDate: string; alternatives: TimeSlotAlternative[]; /** Number of alternative slots the student must attend, rather than choose only one. */ requiredTimeslotCount?: number; /** New multi-slot selection; selectedAlternativeId remains for legacy exports. */ selectedAlternativeIds?: string[]; selectedAlternativeId?: string; }
 export interface CourseExam { id: string; label: string; date: string; location: string; }
 
 export interface RequirementGroup {
@@ -87,6 +87,11 @@ export function withPlannedSemester(module: StudyModule, semester: number | null
   return { ...module, semester: semester ?? undefined, plannedSemester: semester };
 }
 
+export function getSelectedAlternativeIds(component: CourseComponent): string[] {
+  if (Array.isArray(component.selectedAlternativeIds)) return component.selectedAlternativeIds;
+  return component.selectedAlternativeId ? [component.selectedAlternativeId] : [];
+}
+
 export function migrateStudyPlan(value: StudyPlan): StudyPlan {
   return {
     ...value,
@@ -98,7 +103,10 @@ export function migrateStudyPlan(value: StudyPlan): StudyPlan {
       completedThroughPriorStudy: module.status === 'completed' && module.completedThroughPriorStudy === true,
       recommendation: module.recommendation === 'recommended' || module.recommendation === 'strongly-recommended' ? module.recommendation : 'not-reviewed',
       availability: module.availability === 'winter' || module.availability === 'summer' ? module.availability : 'both',
-      components: Array.isArray(module.components) ? module.components : [],
+      components: Array.isArray(module.components) ? module.components.map(component => {
+        const selectedAlternativeIds = Array.isArray(component.selectedAlternativeIds) ? component.selectedAlternativeIds : component.selectedAlternativeId ? [component.selectedAlternativeId] : [];
+        return { ...component, requiredTimeslotCount: Number.isInteger(component.requiredTimeslotCount) && (component.requiredTimeslotCount ?? 0) >= 1 ? component.requiredTimeslotCount : 1, selectedAlternativeIds, selectedAlternativeId: selectedAlternativeIds[0] };
+      }) : [],
       exams: Array.isArray(module.exams) ? module.exams : [],
     })),
   };
@@ -152,11 +160,17 @@ export function findScheduleConflict(plan: StudyPlan, semester: number, moduleId
   for (const module of plan.modules) {
     if (getPlannedSemester(module) !== semester) continue;
     for (const component of module.components ?? []) {
-      const selectedId = module.id === moduleId && component.id === componentId ? alternativeId : component.selectedAlternativeId;
-      if (!selectedId || (module.id === moduleId && component.id === componentId)) continue;
-      const slot = component.alternatives.find(s => s.id === selectedId);
-      if (!slot || slot.weekday !== targetSlot.weekday || !component.startDate || !component.endDate) continue;
-      if (dateRangesShareWeekday(targetComponent.startDate, targetComponent.endDate, component.startDate, component.endDate, targetSlot.weekday) && timesOverlap(targetSlot.startTime, targetSlot.endTime, slot.startTime, slot.endTime)) return { module, component, slot };
+      let selectedIds = getSelectedAlternativeIds(component);
+      if (module.id === moduleId && component.id === componentId) {
+        // A single-slot component replaces its previous choice. Multi-slot components must also be checked against their other selected sessions.
+        selectedIds = (targetComponent.requiredTimeslotCount ?? 1) > 1 ? selectedIds : [];
+        selectedIds = selectedIds.filter(id => id !== alternativeId);
+      }
+      for (const selectedId of selectedIds) {
+        const slot = component.alternatives.find(s => s.id === selectedId);
+        if (!slot || slot.weekday !== targetSlot.weekday || !component.startDate || !component.endDate) continue;
+        if (dateRangesShareWeekday(targetComponent.startDate, targetComponent.endDate, component.startDate, component.endDate, targetSlot.weekday) && timesOverlap(targetSlot.startTime, targetSlot.endTime, slot.startTime, slot.endTime)) return { module, component, slot };
+      }
     }
   }
   return null;
@@ -167,18 +181,20 @@ export function getCalendarEvents(plan: StudyPlan): CalendarEvent[] {
   for (const module of plan.modules) {
     for (const exam of module.exams ?? []) if (dateOnly(exam.date)) events.push({ id: exam.id, date: exam.date, title: exam.label || `${module.title} exam`, subtitle: module.title + ' · Exam', location: exam.location, kind: 'exam', moduleId: module.id });
     for (const component of module.components ?? []) {
-      const slot = component.alternatives.find(s => s.id === component.selectedAlternativeId);
+      const selectedSlots = getSelectedAlternativeIds(component).map(id => component.alternatives.find(slot => slot.id === id)).filter((slot): slot is TimeSlotAlternative => !!slot);
       const start = dateOnly(component.startDate), end = dateOnly(component.endDate);
       if (!start || !end || start > end) continue;
       const startText = component.startDate;
       const endText = component.endDate;
       events.push({ id: component.id + '-period-start', date: startText, title: module.title, subtitle: (component.name || component.type) + ' starts', location: '', kind: 'teaching-start', moduleId: module.id });
       if (endText !== startText) events.push({ id: component.id + '-period-end', date: endText, title: module.title, subtitle: (component.name || component.type) + ' ends', location: '', kind: 'teaching-end', moduleId: module.id });
-      if (!slot || !validTimeRange(slot.startTime, slot.endTime)) continue;
-      const cursor = new Date(start);
-      while (cursor <= end) {
-        if (cursor.getDay() === slot.weekday) events.push({ id: component.id + '-' + cursor.getFullYear() + '-' + (cursor.getMonth()+1) + '-' + cursor.getDate(), date: cursor.getFullYear() + '-' + String(cursor.getMonth()+1).padStart(2,'0') + '-' + String(cursor.getDate()).padStart(2,'0'), title: module.title, subtitle: component.name || component.type, location: slot.location, startTime: slot.startTime, endTime: slot.endTime, kind: 'teaching', moduleId: module.id });
-        cursor.setDate(cursor.getDate() + 1);
+      for (const slot of selectedSlots) {
+        if (!validTimeRange(slot.startTime, slot.endTime)) continue;
+        const cursor = new Date(start);
+        while (cursor <= end) {
+          if (cursor.getDay() === slot.weekday) events.push({ id: component.id + '-' + slot.id + '-' + cursor.getFullYear() + '-' + (cursor.getMonth()+1) + '-' + cursor.getDate(), date: cursor.getFullYear() + '-' + String(cursor.getMonth()+1).padStart(2,'0') + '-' + String(cursor.getDate()).padStart(2,'0'), title: module.title, subtitle: component.name || component.type, location: slot.location, startTime: slot.startTime, endTime: slot.endTime, kind: 'teaching', moduleId: module.id });
+          cursor.setDate(cursor.getDate() + 1);
+        }
       }
     }
   }
