@@ -152,7 +152,7 @@ export default function SchedulingPanel({ plan, setPlan, onSelectModule, compact
       {draggedComponentKey && <p className="schedule-drag-hint" role="status">Choose a highlighted destination. For components requiring multiple sessions, each selection is added until the required number is reached. Tap the picked-up session again to cancel.</p>}
       <div className="timetable-grid">
         <div className="time-gutter"><span>Time</span>{Array.from({length:14},(_,i)=><span key={i}>{String(i+7).padStart(2,'0')}:00</span>)}</div>
-        {weekdays.slice(0,5).map(day=><div className="timetable-day" key={day.value}>
+        {weekdays.map(day=><div className="timetable-day" key={day.value}>
           <h4>{day.label}</h4>
           <div className="timetable-track">
             {Array.from({length:14},(_,i)=><div className="timetable-hour" key={i}/>)}
