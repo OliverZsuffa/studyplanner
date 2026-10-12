@@ -594,3 +594,10 @@ button, select, input { touch-action: manipulation; }
   .course-sessions-shortcut { align-items:flex-start; }
   .course-sessions-shortcut .button { padding:9px; }
 }
+
+.copy-sessions-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:8px 10px; margin:12px 0 18px; padding:12px; border:1px solid #e4e9e1; border-radius:9px; background:#f8faf7; }
+.copy-sessions-row label { display:flex; min-width:0; flex-direction:column; gap:6px; color:#657365; font-size:11px; font-weight:600; }
+.copy-sessions-row select { width:100%; min-width:0; padding:9px 10px; border:1px solid #dfe6dc; border-radius:7px; color:#435344; background:#fff; font-size:11px; }
+.copy-sessions-row small { grid-column:1 / -1; color:#7d897d; font-size:10px; line-height:1.5; }
+.copy-sessions-row button:disabled { cursor:not-allowed; opacity:.5; }
+@media (max-width: 520px) { .copy-sessions-row { grid-template-columns:minmax(0,1fr); } .copy-sessions-row small { grid-column:auto; } }
