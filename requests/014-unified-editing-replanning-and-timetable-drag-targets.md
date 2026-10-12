@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation committed on `feat/unified-course-editing-and-drag-targets`. TypeScript/build and unit-test workflow passed on commit `6bb2faf90c10a49041cd22afc4c9bde096ec12d0` in [GitHub Actions run #38248411061](https://github.com/OliverZsuffa/studyplanner/actions/runs/38248411061). Pages deployment and live browser behaviour still need post-merge verification.
+Implementation committed on `feat/unified-course-editing-and-drag-targets`. TypeScript/build and unit-test workflow passed on commit `6bb2faf90c10a49041cd22afc4c9bde096ec12d0` in [GitHub Actions run #38248411061](https://github.com/OliverZsuffa/studyplanner/actions/runs/38248411061). The post-merge Pages build and deployment succeeded in [GitHub Actions run #38248597927](https://github.com/OliverZsuffa/studyplanner/actions/runs/38248597927). A live browser smoke test has not been performed.
 
 ## User problems addressed
 
@@ -43,5 +43,6 @@ Implementation committed on `feat/unified-course-editing-and-drag-targets`. Type
 ## Verification and release
 
 - CI result: passed. TypeScript check, production build, unit tests, and Pages artifact upload succeeded in [run #38248411061](https://github.com/OliverZsuffa/studyplanner/actions/runs/38248411061).
-- Pages deployment: pending until merge.
+- Pages deployment: succeeded in [run #38248597927](https://github.com/OliverZsuffa/studyplanner/actions/runs/38248597927).
+- Live browser smoke test: not performed in this environment.
 - Live browser smoke test: not yet performed.
