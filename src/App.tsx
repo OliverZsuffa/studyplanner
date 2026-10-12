@@ -292,7 +292,7 @@ function App() {
 
   const changeRecommendation = (id: string, recommendation: ModuleRecommendation) => {
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? { ...module, recommendation } : module) }));
-    setToast('Recommendation updated');
+    notify('Recommendation updated');
   };
 
   const toggleRequirementOption = (groupId: string, moduleId: string) => {
@@ -302,19 +302,19 @@ function App() {
     if (selected.includes(moduleId)) {
       setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((group) => group.id === groupId ? { ...group, selectedModuleIds: (group.selectedModuleIds ?? []).filter((id) => id !== moduleId) } : group) }));
       if (selectedId === moduleId) setSelectedId(null);
-      setToast('Option removed from selection');
+      notify('Option removed from selection');
       return;
     }
     const check = canSelectRequirementOption(plan, groupId, moduleId);
-    if (!check.allowed) { setToast(check.reason ?? 'This option cannot be selected'); return; }
+    if (!check.allowed) { notify(check.reason ?? 'This option cannot be selected'); return; }
     setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((group) => group.id === groupId ? { ...group, selectedModuleIds: [...(group.selectedModuleIds ?? []), moduleId] } : group) }));
     setSelectedId(moduleId);
-    setToast('Elective option selected');
+    notify('Elective option selected');
   };
 
   const changeStatus = (id: string, status: ModuleStatus) => {
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? { ...module, status, completedThroughPriorStudy: status === 'completed' ? module.completedThroughPriorStudy : false } : module) }));
-    setToast('Progress updated');
+    notify('Progress updated');
   };
 
 
@@ -372,12 +372,12 @@ function App() {
     const module = plan.modules.find((item) => item.id === id);
     if (module && semester !== null) {
       const conflict = getPlacementError(module, semester);
-      if (conflict) { setToast(conflict, 'error'); return; }
+      if (conflict) { notify(conflict, 'error'); return; }
     }
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? withPlannedSemester(module, semester) : module) }));
     setDragHoverSemester(undefined);
     setDraggedModuleId(null);
-    setToast(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
+    notify(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
   };
 
   const resetPlannedSemesters = () => {
@@ -386,7 +386,7 @@ function App() {
     setRecommendedPreviewOpen(false);
     setPlanningSelectedIds([]);
     setPlanningReport([]);
-    setToast('All courses are now unplanned. All other course data was preserved.');
+    notify('All courses are now unplanned. All other course data was preserved.');
   };
 
   const applyRecommendedSemesters = () => {
@@ -401,14 +401,14 @@ function App() {
     setPlan({...plan,modules:nextModules});
     setPlanningReport(skipped.map(item=>({title:item.title,reason:item.reason!})));
     setRecommendedPreviewOpen(false);
-    setToast(`Assigned recommended semesters to ${assigned} course(s). ${skipped.length} course(s) could not be assigned. See the reasons below.`);
+    notify(`Assigned recommended semesters to ${assigned} course(s). ${skipped.length} course(s) could not be assigned. See the reasons below.`);
   };
 
   const addRecommendedForSemester = () => {
     setPlanningReport([]);
     if (semesterPlanningCandidates.length === 0) {
       setRecommendedPreviewOpen(false);
-      setToast(`There are no unplanned courses left to consider for Semester ${targetSemester}.`);
+      notify(`There are no unplanned courses left to consider for Semester ${targetSemester}.`);
       return;
     }
     setPlanningSelectedIds(semesterPlanningCandidates.filter(item => item.reason === null).map(item => item.module.id));
@@ -422,12 +422,12 @@ function App() {
     setPlanningReport([]);
     setRecommendedPreviewOpen(false);
     setPlanningSelectedIds([]);
-    setToast(`Added ${eligible.length} selected course(s) to Semester ${targetSemester}. ${excluded} course(s) were unavailable because of season or prerequisites.`);
+    notify(`Added ${eligible.length} selected course(s) to Semester ${targetSemester}. ${excluded} course(s) were unavailable because of season or prerequisites.`);
   };
 
   const addSelectedCompatibleCourse = () => {
     const course=compatibleExtraCourses.find(module=>module.id===extraCourseId);
-    if(!course){setToast('Choose an eligible additional course first.');return;}
+    if(!course){notify('Choose an eligible additional course first.');return;}
     moveModule(course.id,targetSemester);setExtraCourseId('');setPlanningReport([]);
   };
 
@@ -446,7 +446,7 @@ function App() {
         semester: semester ?? undefined, plannedSemester: semester, suggestedSemester: recommendedSemester, status: newStatus, completedThroughPriorStudy: newStatus === 'completed' ? module.completedThroughPriorStudy : false, result,
         grade: grade !== undefined && Number.isFinite(grade) && grade >= 1 && grade <= 4 ? grade : undefined,
       } : module) }));
-      setToast('Module updated');
+      notify('Module updated');
       setSelectedId(editingModuleId);
     } else {
       const id = 'module-' + Date.now().toString(36);
@@ -463,7 +463,7 @@ function App() {
       } : null;
       setPlan((current) => ({ ...current, modules: [...current.modules, module], dependencies: dependency ? [...current.dependencies, dependency] : current.dependencies }));
       setSelectedId(id);
-      setToast('Module added');
+      notify('Module added');
     }
     setShowAdd(false);
   };
@@ -573,11 +573,19 @@ function App() {
                   {[...semesters.map((semester) => ({ semester, title: plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm, semester))}` : `Semester ${semester}` })), { semester: null as number | null, title: 'Unplanned' }].map((column) => {
                     const columnModules = filteredModules.filter((module) => getPlannedSemester(module) === column.semester);
                     const total = columnModules.filter((module) => isModuleCountedInPlan(plan, module.id)).reduce((sum, module) => sum + module.ects, 0);
-                    return <section className="kanban-column" key={column.title} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/studyplanner-module'); if (id) moveModule(id, column.semester); }} aria-label={column.title}>
+                    const draggedModule = draggedModuleId ? plan.modules.find(module => module.id === draggedModuleId) : undefined;
+                    const dropError = draggedModule ? getPlacementError(draggedModule, column.semester) : null;
+                    const isHovered = dragHoverSemester === column.semester;
+                    return <section className={'kanban-column ' + (isHovered ? (dropError ? 'drop-invalid' : 'drop-valid') : '')} key={column.title}
+                      onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = dropError ? 'none' : 'move'; setDragHoverSemester(column.semester); }}
+                      onDragLeave={(event) => { if (!(event.relatedTarget instanceof Element) || !event.currentTarget.contains(event.relatedTarget)) setDragHoverSemester(undefined); }}
+                      onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/studyplanner-module'); if (id) moveModule(id, column.semester); setDragHoverSemester(undefined); setDraggedModuleId(null); }}
+                      aria-label={column.title}>
                       <header className="kanban-column-header"><div><strong>{column.title}</strong><small>{columnModules.length} {columnModules.length === 1 ? 'module' : 'modules'}</small></div><span>{total} ECTS</span></header>
+                      {isHovered && draggedModule && <div className={'drop-feedback ' + (dropError ? 'error' : 'valid')} role="status">{dropError ? <><AlertCircle size={15} /><span>{dropError}</span></> : <><CheckCircle2 size={15} /><span>Drop to move into {column.title}</span></>}</div>}
                       <div className="kanban-cards">
-                        {columnModules.map((module) => <article className={'kanban-card ' + (selectedId === module.id ? 'selected' : '')} key={module.id} draggable onDragStart={(event) => { event.dataTransfer.setData('text/studyplanner-module', module.id); event.dataTransfer.effectAllowed = 'move'; }} onClick={() => setSelectedId(module.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(module.id); } }} tabIndex={0} aria-label={`${module.title}, ${module.ects} ECTS`}>
-                          <div className="kanban-card-top"><span>{module.code}</span><button className="kanban-edit" aria-label={`Edit ${module.title}`} onClick={(event) => { event.stopPropagation(); openEditModule(module); }}><Pencil size={13} /></button></div>
+                        {columnModules.map((module) => <article className={'kanban-card ' + (selectedId === module.id ? 'selected' : '') + (planningErrors.some(error => error.moduleIds.includes(module.id)) ? ' has-planning-error' : '')} key={module.id} draggable onDragStart={(event) => { setDraggedModuleId(module.id); setDragHoverSemester(undefined); event.dataTransfer.setData('text/studyplanner-module', module.id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => { setDraggedModuleId(null); setDragHoverSemester(undefined); }} onClick={() => setSelectedId(module.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(module.id); } }} tabIndex={0} aria-label={`${module.title}, ${module.ects} ECTS`}>
+                          <div className="kanban-card-top"><span>{module.code}</span><span className="kanban-card-actions">{planningErrors.some(error => error.moduleIds.includes(module.id)) && <AlertCircle className="card-error-icon" size={14} aria-label="Planning error" />}{getRecommendedSemester(module) && <span className="official-semester-chip">Recommended S{getRecommendedSemester(module)}</span>}<button className="kanban-edit" aria-label={`Edit ${module.title}`} onClick={(event) => { event.stopPropagation(); openEditModule(module); }}><Pencil size={13} /></button></span></div>
                           <strong>{module.title}</strong><p>{module.category} · {module.ects} ECTS</p>
                           <div className="kanban-card-footer"><span className={'status-pill ' + module.status}>{statusLabels[module.status]}</span>{module.recommendation && module.recommendation !== 'not-reviewed' ? <span className={'recommendation-pill ' + module.recommendation}>{module.recommendation === 'strongly-recommended' ? 'Strongly recommended' : 'Recommended'}</span> : null}</div>
                           <label className="kanban-move" onClick={(event) => event.stopPropagation()}>Move to<select aria-label={`Move ${module.title} to semester`} value={getPlannedSemester(module) ?? ''} onChange={(event) => moveModule(module.id, event.target.value === '' ? null : Number(event.target.value))}><option value="">Unplanned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm, semester))}` : `Semester ${semester}`}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? `S${Math.max(...semesters) + 1} · ${getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters) + 1))}` : `Semester ${Math.max(...semesters) + 1}`}</option></select></label>
@@ -634,11 +642,11 @@ function App() {
                   <section className="course-sessions-shortcut"><div><strong>Teaching sessions & exams</strong><span>{(selected.components ?? []).length} teaching component{(selected.components ?? []).length === 1 ? '' : 's'} · {(selected.exams ?? []).length} exam{(selected.exams ?? []).length === 1 ? '' : 's'}</span></div><button type="button" className="button button-quiet" onClick={() => setShowSessionEditor(true)}><CalendarDays size={15} /> Edit here</button></section>
                   <details className="detail-advanced"><summary>Optional planning guidance <span>{selected.recommendation === 'strongly-recommended' ? 'Strongly recommended' : selected.recommendation === 'recommended' ? 'Recommended' : 'No recommendation set'}</span></summary><p>This is your own optional rating of how useful a course seems. It is not an official assessment and does not change progress, semester, or ECTS.</p><label className="field-label" htmlFor="module-recommendation">Course recommendation</label><select id="module-recommendation" className="status-select detail-field-gap" value={selected.recommendation ?? 'not-reviewed'} onChange={(event) => changeRecommendation(selected.id, event.target.value as ModuleRecommendation)}><option value="not-reviewed">No recommendation set</option><option value="recommended">Recommended</option><option value="strongly-recommended">Strongly recommended</option></select></details>
                   <label className="field-label" htmlFor="planned-semester">WHEN DO YOU PLAN TO TAKE IT?</label>
-                  <select id="planned-semester" className="status-select detail-field-gap" value={getPlannedSemester(selected) ?? ''} onChange={(event) => { const next = event.target.value === '' ? null : Number(event.target.value); const problem = getPlacementError(selected, next); if (problem) { setToast(problem, 'error'); return; } setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: next ?? undefined, plannedSemester: next } : module) })); }}><option value="">Not planned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? 'S'+semester+' · '+getTermLabel(getTermForSemester(plan.startingTerm, semester)) : 'Semester '+semester}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? 'S'+(Math.max(...semesters)+1)+' · '+getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters)+1)) : 'Semester '+(Math.max(...semesters)+1)}</option></select>
-                  <details className="detail-advanced"><summary>Recommended semester <span>{getRecommendedSemester(selected) ? `S${getRecommendedSemester(selected)}` : 'Not set'}</span></summary><p>Set the semester you recommend for this course. “Apply recommended semesters” uses this value, independently of your actual planned semester.</p><label className="field-label" htmlFor="recommended-semester">RECOMMENDED SEMESTER</label><select id="recommended-semester" className="status-select detail-field-gap" value={getRecommendedSemester(selected) ?? ''} onChange={(event) => { const value = event.target.value === '' ? null : Number(event.target.value); setPlan(current => ({...current, modules: current.modules.map(module => module.id === selected.id ? {...module, suggestedSemester: value} : module)})); setToast(value === null ? 'Recommended semester cleared' : `Recommended semester set to S${value}`); }}><option value="">Not set</option>{Array.from({length:20},(_,index)=>index+1).map(semester=><option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm,semester))}` : `Semester ${semester}`}</option>)}</select></details>
+                  <select id="planned-semester" className="status-select detail-field-gap" value={getPlannedSemester(selected) ?? ''} onChange={(event) => { const next = event.target.value === '' ? null : Number(event.target.value); const problem = getPlacementError(selected, next); if (problem) { notify(problem, 'error'); return; } setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: next ?? undefined, plannedSemester: next } : module) })); }}><option value="">Not planned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? 'S'+semester+' · '+getTermLabel(getTermForSemester(plan.startingTerm, semester)) : 'Semester '+semester}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? 'S'+(Math.max(...semesters)+1)+' · '+getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters)+1)) : 'Semester '+(Math.max(...semesters)+1)}</option></select>
+                  <details className="detail-advanced"><summary>Recommended semester <span>{getRecommendedSemester(selected) ? `S${getRecommendedSemester(selected)}` : 'Not set'}</span></summary><p>Set the semester you recommend for this course. “Apply recommended semesters” uses this value, independently of your actual planned semester.</p><label className="field-label" htmlFor="recommended-semester">RECOMMENDED SEMESTER</label><select id="recommended-semester" className="status-select detail-field-gap" value={getRecommendedSemester(selected) ?? ''} onChange={(event) => { const value = event.target.value === '' ? null : Number(event.target.value); setPlan(current => ({...current, modules: current.modules.map(module => module.id === selected.id ? {...module, suggestedSemester: value} : module)})); notify(value === null ? 'Recommended semester cleared' : `Recommended semester set to S${value}`); }}><option value="">Not set</option>{Array.from({length:20},(_,index)=>index+1).map(semester=><option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm,semester))}` : `Semester ${semester}`}</option>)}</select></details>
                   <details className="detail-advanced"><summary>Official source information</summary><p>Official study-plan semester: {selected.recommendedSemester ? `Semester ${selected.recommendedSemester}` : 'Not known'}{selected.sourceLocation ? ` · ${selected.sourceLocation}` : ''}</p>{selected.sourceEvidence && <p><strong>Source evidence</strong><br />{selected.sourceEvidence}</p>}{selected.sourceLocation && /^https?:\/\//i.test(selected.sourceLocation) && <p><a href={selected.sourceLocation} target="_blank" rel="noreferrer">Open source ↗</a></p>}</details>
                   {selected.description && <p className="detail-description">{selected.description}</p>}
-                  {(plan.requirementGroups ?? []).length > 0 && <details className="detail-advanced"><summary>Elective / choice groups <span>{getModuleRequirementGroups(plan, selected.id).length ? 'Linked' : 'Not linked'}</span></summary><p>Tick a group to add this course as one of its options. Then choose whether you plan to take it.</p>{(plan.requirementGroups ?? []).map((group) => { const linked = group.moduleIds.includes(selected.id); const chosen = (group.selectedModuleIds ?? []).includes(selected.id); return <div className="module-group-link" key={group.id}><label><input type="checkbox" checked={linked} onChange={(event) => { const checked = event.target.checked; setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((item) => item.id === group.id ? { ...item, moduleIds: checked ? [...item.moduleIds, selected.id] : item.moduleIds.filter((id) => id !== selected.id), selectedModuleIds: checked ? (item.selectedModuleIds ?? []) : (item.selectedModuleIds ?? []).filter((id) => id !== selected.id) } : item) })); }} />{group.title}</label>{linked && <label className="module-group-choice"><input type="checkbox" checked={chosen} onChange={(event) => { if (event.target.checked) { const check = canSelectRequirementOption(plan, group.id, selected.id); if (!check.allowed) { setToast(check.reason ?? 'This course cannot be selected yet'); return; } } toggleRequirementOption(group.id, selected.id); }} />Plan to take</label>}</div>; })}</details>}
+                  {(plan.requirementGroups ?? []).length > 0 && <details className="detail-advanced"><summary>Elective / choice groups <span>{getModuleRequirementGroups(plan, selected.id).length ? 'Linked' : 'Not linked'}</span></summary><p>Tick a group to add this course as one of its options. Then choose whether you plan to take it.</p>{(plan.requirementGroups ?? []).map((group) => { const linked = group.moduleIds.includes(selected.id); const chosen = (group.selectedModuleIds ?? []).includes(selected.id); return <div className="module-group-link" key={group.id}><label><input type="checkbox" checked={linked} onChange={(event) => { const checked = event.target.checked; setPlan((current) => ({ ...current, requirementGroups: (current.requirementGroups ?? []).map((item) => item.id === group.id ? { ...item, moduleIds: checked ? [...item.moduleIds, selected.id] : item.moduleIds.filter((id) => id !== selected.id), selectedModuleIds: checked ? (item.selectedModuleIds ?? []) : (item.selectedModuleIds ?? []).filter((id) => id !== selected.id) } : item) })); }} />{group.title}</label>{linked && <label className="module-group-choice"><input type="checkbox" checked={chosen} onChange={(event) => { if (event.target.checked) { const check = canSelectRequirementOption(plan, group.id, selected.id); if (!check.allowed) { notify(check.reason ?? 'This course cannot be selected yet'); return; } } toggleRequirementOption(group.id, selected.id); }} />Plan to take</label>}</div>; })}</details>}
                   <label className="field-label" htmlFor="module-status">COURSE PROGRESS</label>
                   <select id="module-status" className="status-select" value={selected.status} onChange={(event) => changeStatus(selected.id, event.target.value as ModuleStatus)}>
                     <option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option>
@@ -669,7 +677,7 @@ function App() {
           </div>
           {view === 'graph' && <DependencyEditor plan={plan} setPlan={setPlan} />}
 
-          <div className="bottom-note"><span><span className="sample-badge"><CircleHelp size={12} /> SAMPLE DATA</span> {plan.institution}</span><button onClick={() => { if (window.confirm('Reset your plan and progress to the original sample? This cannot be undone.')) { setPlan(samplePlan); setSelectedId('algorithms'); setToast('Sample plan restored'); } }}><Settings2 size={14} /> Reset sample</button></div>
+          <div className="bottom-note"><span><span className="sample-badge"><CircleHelp size={12} /> SAMPLE DATA</span> {plan.institution}</span><button onClick={() => { if (window.confirm('Reset your plan and progress to the original sample? This cannot be undone.')) { setPlan(samplePlan); setSelectedId('algorithms'); notify('Sample plan restored'); } }}><Settings2 size={14} /> Reset sample</button></div>
         </section>
 
         <section className="next-strip">
@@ -680,8 +688,8 @@ function App() {
 
       {tourOpen && <div className="tour-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) finishTour(); }}><section className="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title"><div className="tour-dialog-top"><span className="tour-icon"><Route size={20} /></span><button type="button" className="icon-button" aria-label="Close guided tour" onClick={finishTour}><X size={17} /></button></div><div className="tour-eyebrow">{tourSteps[tourStep].eyebrow}</div><h2 id="tour-title">{tourSteps[tourStep].title}</h2><p>{tourSteps[tourStep].body}</p><div className="tour-tip"><Sparkles size={15} /><span>{tourSteps[tourStep].tip}</span></div><div className="tour-progress" aria-label={`Step ${tourStep + 1} of ${tourSteps.length}`}>{tourSteps.map((step, index) => <span key={step.eyebrow} className={index <= tourStep ? 'active' : ''} />)}</div><div className="tour-actions"><button type="button" className="button button-quiet" onClick={finishTour}>Skip tour</button><div>{tourStep > 0 && <button type="button" className="button button-quiet" onClick={() => setTourStep((step) => step - 1)}>Back</button>}<button type="button" className="button button-primary" onClick={() => tourStep === tourSteps.length - 1 ? finishTour() : setTourStep((step) => step + 1)}>{tourStep === tourSteps.length - 1 ? 'Start planning' : 'Next'} <ArrowRight size={15} /></button></div></div></section></div>}
       {showSessionEditor && selected && <div className="modal-backdrop session-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSessionEditor(false); }}><section className="session-editor-modal" role="dialog" aria-modal="true" aria-label={`Teaching sessions and exams for ${selected.title}`}><div className="session-editor-modal-heading"><div><div className="eyebrow">COURSE DETAILS</div><h2>{selected.title}</h2><p>Edit sessions and exams without leaving your course card.</p></div><button type="button" className="icon-button" aria-label="Close session editor" onClick={() => setShowSessionEditor(false)}><X size={18} /></button></div><SchedulingPanel plan={plan} setPlan={setPlan} compactModuleId={selected.id} compact /></section></div>}
-      {showQuickAdd && <QuickAddWizard currentPlan={plan} onClose={() => setShowQuickAdd(false)} onApply={(modules) => { setPlan((current) => ({ ...current, modules: [...current.modules, ...modules] })); setSelectedId(modules[0]?.id ?? selectedId); setShowQuickAdd(false); setToast(`Added ${modules.length} ${modules.length === 1 ? 'course' : 'courses'}`); }} />}
-      {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(migrateStudyPlan(imported)); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); setToast('Study plan imported'); }} />}
+      {showQuickAdd && <QuickAddWizard currentPlan={plan} onClose={() => setShowQuickAdd(false)} onApply={(modules) => { setPlan((current) => ({ ...current, modules: [...current.modules, ...modules] })); setSelectedId(modules[0]?.id ?? selectedId); setShowQuickAdd(false); notify(`Added ${modules.length} ${modules.length === 1 ? 'course' : 'courses'}`); }} />}
+      {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(migrateStudyPlan(imported)); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); notify('Study plan imported'); }} />}
       {showAdd && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><form className="add-modal" onSubmit={addModule}>
         <div className="modal-heading"><div><div className="eyebrow">YOUR STUDY PLAN</div><h2>{editingModuleId ? 'Edit module' : 'Add a module'}</h2><p>Keep course details and planning information together.</p></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
         <label className="form-label">Module name<input autoFocus required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="e.g. Applied Statistics" /></label>
@@ -694,7 +702,7 @@ function App() {
         {!editingModuleId && <label className="form-label">Recommended preparation <span className="optional-label">OPTIONAL</span><select value={newDependency} onChange={(event) => setNewDependency(event.target.value)}><option value="">No connection yet</option>{plan.modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select><small>This creates a suggested connection, not a formal prerequisite.</small></label>}
         <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="button button-primary"><FilePlus2 size={16} /> {editingModuleId ? 'Save changes' : 'Add to plan'}</button></div>
       </form></div>}
-      {toast && <div className="toast"><CheckCircle2 size={16} /> {toast}<button aria-label="Dismiss notification" onClick={() => setToast('')}><X size={14} /></button></div>}
+      {toast && <div className={'toast toast-' + toastType} role={toastType === 'error' ? 'alert' : 'status'}>{toastType === 'error' ? <AlertCircle size={17} /> : toastType === 'info' ? <CircleHelp size={17} /> : <CheckCircle2 size={17} />} <span>{toast}</span><button aria-label="Dismiss notification" onClick={() => notify('')}><X size={14} /></button></div>
     </div>
   );
 }
