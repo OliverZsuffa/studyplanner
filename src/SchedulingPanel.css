@@ -17,3 +17,13 @@
 .calendar-event.teaching-start{border-left-color:#2e9a58;background:#e9f8ee;color:#205d34}.calendar-event.teaching-end{border-left-color:#a17c37;background:#fff7e5;color:#76571e}.dark-mode .calendar-event.teaching-start{background:#173b27;color:#d7f7df}.dark-mode .calendar-event.teaching-end{background:#43351b;color:#ffedbd}
 
 .alternative-chips{display:flex;flex-direction:column;gap:3px}.alternative-chips button{padding:3px 4px;border:1px dashed currentColor;border-radius:4px;background:transparent;color:inherit;text-align:left;font-size:8px;line-height:1.25;cursor:grab}.alternative-chips button:active{cursor:grabbing}.alternative-chips button:focus-visible{outline:2px solid #4c9361;outline-offset:1px}
+
+
+/* Direct-manipulation feedback for timetable session alternatives. */
+.timetable-session.session-being-dragged{opacity:.72;outline:2px dashed var(--accent);outline-offset:2px}
+.alternative-chips.show-drop-targets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding:6px;border:1px dashed var(--line);border-radius:8px;background:var(--surface)}
+.alternative-chips button.drop-target-valid{border:1px solid #2f9e68;background:rgba(47,158,104,.16);color:var(--text);box-shadow:inset 0 0 0 1px rgba(47,158,104,.16)}
+.alternative-chips button.drop-target-invalid{border:1px solid #dc4545;background:rgba(220,69,69,.13);color:var(--text);opacity:.8}
+.alternative-chips button.drop-target-valid:hover{background:rgba(47,158,104,.28);transform:translateY(-1px)}
+.alternative-chips button.drop-target-invalid:hover{background:rgba(220,69,69,.2)}
+.schedule-drag-hint{padding:9px 12px;border-radius:8px;border:1px solid rgba(47,158,104,.45);background:rgba(47,158,104,.1);font-size:13px;font-weight:600}
