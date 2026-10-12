@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation committed on `feat/unified-course-editing-and-drag-targets`. Automated verification and deployment status must be filled in after CI runs.
+Implementation committed on `feat/unified-course-editing-and-drag-targets`. TypeScript/build and unit-test workflow passed on commit `6bb2faf90c10a49041cd22afc4c9bde096ec12d0` in [GitHub Actions run #38248411061](https://github.com/OliverZsuffa/studyplanner/actions/runs/38248411061). Pages deployment and live browser behaviour still need post-merge verification.
 
 ## User problems addressed
 
@@ -42,6 +42,6 @@ Implementation committed on `feat/unified-course-editing-and-drag-targets`. Auto
 
 ## Verification and release
 
-- CI result: pending.
-- Pages deployment: pending.
+- CI result: passed. TypeScript check, production build, unit tests, and Pages artifact upload succeeded in [run #38248411061](https://github.com/OliverZsuffa/studyplanner/actions/runs/38248411061).
+- Pages deployment: pending until merge.
 - Live browser smoke test: not yet performed.
