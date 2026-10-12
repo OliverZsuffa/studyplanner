@@ -15,11 +15,11 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import {
-  ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CheckCircle2, ChevronDown,
+  ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CheckCircle2, ChevronDown, AlertCircle,
   CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List, ClipboardPaste,
   Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award, Columns3, Pencil, ArrowRight, Route,
 } from 'lucide-react';
-import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts } from './model';
+import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts, getRecommendedSemester } from './model';
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
 import QuickAddWizard from './QuickAddWizard';
@@ -169,7 +169,16 @@ function App() {
   const [newStatus, setNewStatus] = useState<ModuleStatus>('not-started');
   const [newResult, setNewResult] = useState<'unrecorded' | 'passed' | 'failed'>('unrecorded');
   const [newGrade, setNewGrade] = useState('');
-  const [toast, setToast] = useState('');
+  const [toast, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
+  const [draggedModuleId, setDraggedModuleId] = useState<string | null>(null);
+  const [dragHoverSemester, setDragHoverSemester] = useState<number | null | undefined>(undefined);
+  const [newRecommendedSemester, setNewRecommendedSemester] = useState('');
+
+  function notify(message: string, type: 'success' | 'error' | 'info' = 'success') {
+    setToastType(type);
+    setToastMessage(message);
+  }
   const [newTitle, setNewTitle] = useState('');
   const [newSemester, setNewSemester] = useState('1');
   const [newEcts, setNewEcts] = useState('5');
