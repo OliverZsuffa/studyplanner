@@ -154,6 +154,8 @@ function App() {
   const [seasonFilter, setSeasonFilter] = useState<'all' | 'winter' | 'summer'>('all');
   const [planningSemester, setPlanningSemester] = useState('1');
   const [extraCourseId, setExtraCourseId] = useState('');
+  const [recommendedPreviewOpen, setRecommendedPreviewOpen] = useState(false);
+  const [planningReport, setPlanningReport] = useState<{ title: string; reason: string }[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [view, setView] = useState<'kanban' | 'graph' | 'list' | 'schedule'>('kanban');
   const [showAdd, setShowAdd] = useState(false);
@@ -187,6 +189,7 @@ function App() {
   const selected = plan.modules.find((module) => module.id === selectedId) ?? null;
   const targetSemester = Math.max(1, Math.min(20, Number(planningSemester) || 1));
   const compatibleExtraCourses = plan.modules.filter(module => isModuleVisibleInPlan(plan, module.id) && getPlannedSemester(module) === null && getModulePlanningBlockReason(plan, module, targetSemester) === null);
+  const recommendedSemesterPreview = plan.modules.filter(module => isModuleVisibleInPlan(plan, module.id) && getPlannedSemester(module) === null && module.recommendedSemester === targetSemester).map(module => ({ module, reason: getModulePlanningBlockReason(plan, module, targetSemester) }));
   const filteredModules = useMemo(() => visiblePlan.modules.filter((module) => {
     const matchesQuery = (module.title + ' ' + module.code + ' ' + module.category).toLowerCase().includes(query.toLowerCase());
     const matchesSemester = semesterFilter === 'all' || (semesterFilter === 'unplanned' ? getPlannedSemester(module) === null : String(getPlannedSemester(module) ?? '') === semesterFilter);
@@ -331,28 +334,49 @@ function App() {
   const resetPlannedSemesters = () => {
     if (!window.confirm('Set every course to Unplanned? Course details, progress, dependencies, electives, grades, teaching sessions and exams will be preserved.')) return;
     setPlan(current => ({ ...current, modules: current.modules.map(module => withPlannedSemester(module, null)) }));
+    setRecommendedPreviewOpen(false);
+    setPlanningReport([]);
     setToast('All courses are now unplanned. All other course data was preserved.');
   };
+
   const applyRecommendedSemesters = () => {
     const nextModules = plan.modules.map(module => {
       if (getPlannedSemester(module) !== null || module.recommendedSemester == null || !isModuleVisibleInPlan(plan, module.id)) return module;
       return getModulePlanningBlockReason(plan, module, module.recommendedSemester) ? module : withPlannedSemester(module, module.recommendedSemester);
     });
     const assigned = nextModules.filter((module,index)=>getPlannedSemester(module)!==null&&getPlannedSemester(plan.modules[index])===null).length;
-    const skipped = plan.modules.filter(module=>getPlannedSemester(module)===null&&module.recommendedSemester!=null&&isModuleVisibleInPlan(plan,module.id)&&getModulePlanningBlockReason(plan,module,module.recommendedSemester)!==null);
+    const skipped = plan.modules.filter(module=>getPlannedSemester(module)===null&&module.recommendedSemester!=null&&isModuleVisibleInPlan(plan,module.id))
+      .map(module=>({title:module.title,reason:getModulePlanningBlockReason(plan,module,module.recommendedSemester!)})).filter(item=>item.reason);
     setPlan({...plan,modules:nextModules});
-    setToast(`Assigned recommended semesters to ${assigned} course(s). ${skipped.length} course(s) skipped because of availability or unfinished dependencies.`);
+    setPlanningReport(skipped.map(item=>({title:item.title,reason:item.reason!})));
+    setRecommendedPreviewOpen(false);
+    setToast(`Assigned recommended semesters to ${assigned} course(s). ${skipped.length} course(s) could not be assigned. See the reasons below.`);
   };
+
   const addRecommendedForSemester = () => {
-    const candidates=plan.modules.filter(module=>isModuleVisibleInPlan(plan,module.id)&&getPlannedSemester(module)===null&&module.recommendedSemester===targetSemester);
-    const eligible=candidates.filter(module=>getModulePlanningBlockReason(plan,module,targetSemester)===null);
-    if(eligible.length)setPlan(current=>({...current,modules:current.modules.map(module=>eligible.some(candidate=>candidate.id===module.id)?withPlannedSemester(module,targetSemester):module)}));
-    setToast(`Added ${eligible.length} recommended course(s) to Semester ${targetSemester}. ${candidates.length-eligible.length} excluded because of season availability, unfinished dependencies, or completion status.`);
+    setPlanningReport([]);
+    if (recommendedSemesterPreview.length === 0) {
+      setRecommendedPreviewOpen(false);
+      setToast(`No unplanned courses have an official recommendation for Semester ${targetSemester}.`);
+      return;
+    }
+    setRecommendedPreviewOpen(true);
   };
+
+  const confirmAddRecommendedForSemester = () => {
+    const candidates = recommendedSemesterPreview;
+    const eligible = candidates.filter(item => item.reason === null).map(item => item.module);
+    const skipped = candidates.filter(item => item.reason !== null).map(item => ({ title: item.module.title, reason: item.reason! }));
+    if (eligible.length) setPlan(current => ({ ...current, modules: current.modules.map(module => eligible.some(candidate => candidate.id === module.id) ? withPlannedSemester(module, targetSemester) : module) }));
+    setPlanningReport(skipped);
+    setRecommendedPreviewOpen(false);
+    setToast(`Added ${eligible.length} course(s) to Semester ${targetSemester}. ${skipped.length} excluded. See reasons below.`);
+  };
+
   const addSelectedCompatibleCourse = () => {
     const course=compatibleExtraCourses.find(module=>module.id===extraCourseId);
     if(!course){setToast('Choose an eligible additional course first.');return;}
-    moveModule(course.id,targetSemester);setExtraCourseId('');
+    moveModule(course.id,targetSemester);setExtraCourseId('');setPlanningReport([]);
   };
 
   const addModule = (event: React.FormEvent<HTMLFormElement>) => {
@@ -483,7 +507,9 @@ function App() {
 
           <section className="semester-planner-actions" aria-label="Semester planning actions">
             <div className="semester-planner-actions-heading"><div><strong>Plan a semester faster</strong><small>Seasonal availability and recorded dependencies are checked before courses are assigned.</small></div><div className="semester-planner-buttons"><button type="button" className="button button-quiet" onClick={applyRecommendedSemesters}>Fill unplanned from recommendations</button><button type="button" className="button button-quiet" onClick={resetPlannedSemesters}>Reset planned semesters</button></div></div>
-            <div className="semester-planner-row"><label>Target semester<select value={planningSemester} onChange={event=>{setPlanningSemester(event.target.value);setExtraCourseId('');}} aria-label="Target semester">{semesters.map(semester=><option value={semester} key={semester}>{plan.startingTerm?'S'+semester+' · '+getTermLabel(getTermForSemester(plan.startingTerm,semester)):'Semester '+semester}</option>)}<option value={Math.max(...semesters)+1}>{plan.startingTerm?'S'+(Math.max(...semesters)+1)+' · '+getTermLabel(getTermForSemester(plan.startingTerm,Math.max(...semesters)+1)):'Semester '+(Math.max(...semesters)+1)}</option></select></label><button type="button" className="button button-primary" onClick={addRecommendedForSemester}>Add eligible recommended courses</button><label className="extra-course-picker">Additional compatible course<select value={extraCourseId} onChange={event=>setExtraCourseId(event.target.value)}><option value="">Choose a course…</option>{compatibleExtraCourses.map(module=><option key={module.id} value={module.id}>{module.code} · {module.title} · {module.ects} ECTS</option>)}</select></label><button type="button" className="button button-quiet" disabled={!extraCourseId} onClick={addSelectedCompatibleCourse}>Add selected course</button></div>
+            <div className="semester-planner-row"><label>Target semester<select value={planningSemester} onChange={event=>{setPlanningSemester(event.target.value);setExtraCourseId('');}} aria-label="Target semester">{semesters.map(semester=><option value={semester} key={semester}>{plan.startingTerm?'S'+semester+' · '+getTermLabel(getTermForSemester(plan.startingTerm,semester)):'Semester '+semester}</option>)}<option value={Math.max(...semesters)+1}>{plan.startingTerm?'S'+(Math.max(...semesters)+1)+' · '+getTermLabel(getTermForSemester(plan.startingTerm,Math.max(...semesters)+1)):'Semester '+(Math.max(...semesters)+1)}</option></select></label><button type="button" className="button button-primary" onClick={addRecommendedForSemester}>Review recommended courses</button><label className="extra-course-picker">Additional compatible course<select value={extraCourseId} onChange={event=>setExtraCourseId(event.target.value)}><option value="">Choose a course…</option>{compatibleExtraCourses.map(module=><option key={module.id} value={module.id}>{module.code} · {module.title} · {module.ects} ECTS</option>)}</select></label><button type="button" className="button button-quiet" disabled={!extraCourseId} onClick={addSelectedCompatibleCourse}>Add selected course</button></div>
+            {recommendedPreviewOpen && <section className="semester-preview" aria-label={`Preview recommended courses for Semester ${targetSemester}`}><div><strong>Review courses for Semester {targetSemester}</strong><p>Only eligible courses will be added. Courses already assigned elsewhere are left untouched.</p></div><ul>{recommendedSemesterPreview.map(({module,reason})=><li key={module.id} className={reason ? 'preview-excluded' : 'preview-eligible'}><span><strong>{module.title}</strong><small>{module.code} · {module.ects} ECTS</small></span><span>{reason ? 'Not added: ' + reason : 'Will be added'}</span></li>)}</ul><div className="semester-preview-actions"><button type="button" className="button button-quiet" onClick={()=>setRecommendedPreviewOpen(false)}>Cancel</button><button type="button" className="button button-primary" disabled={!recommendedSemesterPreview.some(item=>item.reason===null)} onClick={confirmAddRecommendedForSemester}>Add {recommendedSemesterPreview.filter(item=>item.reason===null).length} eligible course(s)</button></div></section>}
+            {planningReport.length > 0 && <div className="planning-report" role="status"><strong>Courses not assigned</strong><ul>{planningReport.map(item=><li key={item.title}><strong>{item.title}</strong><span>{item.reason}</span></li>)}</ul></div>}
             <small className="semester-planner-footnote">{compatibleExtraCourses.length} additional course(s) currently meet the target semester's availability and dependency checks. Recommended courses already assigned elsewhere are left untouched.</small>
           </section>
 
