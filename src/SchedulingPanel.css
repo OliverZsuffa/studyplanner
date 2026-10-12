@@ -36,3 +36,12 @@
 .timetable-drop-target span{font-weight:700}
 .timetable-drop-target small{font-size:9px;overflow-wrap:anywhere}
 .timetable-drop-target:hover{filter:brightness(1.08)}
+
+/* Timetable interaction: cards can be picked up by drag or tap, and alternatives are real-position drop targets. */
+.timetable-session{cursor:grab;touch-action:manipulation}
+.timetable-session:active{cursor:grabbing}
+.timetable-selection-status{font-weight:700}
+.timetable-drop-target{touch-action:manipulation;cursor:copy;pointer-events:auto}
+.timetable-drop-target.selected{border-style:solid;box-shadow:0 0 0 2px rgba(255,255,255,.4),0 0 0 4px rgba(47,158,104,.28)}
+.timetable-drop-target.invalid{cursor:not-allowed}
+@media(max-width:700px){.timetable-drop-target{padding:7px;font-size:11px}.timetable-drop-target strong{font-size:11px}.timetable-drop-target small{font-size:10px}.timetable-selection-status{overflow-wrap:anywhere}}
