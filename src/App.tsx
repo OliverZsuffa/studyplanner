@@ -220,19 +220,27 @@ function App() {
   const requiredIncoming = selected ? plan.dependencies.filter((dependency) => dependency.target === selected.id && dependency.kind === 'required') : [];
   const recommendedIncoming = selected ? plan.dependencies.filter((dependency) => dependency.target === selected.id && dependency.kind === 'recommended') : [];
 
-  const planningWarnings = useMemo(() => {
+  const planningErrors = useMemo(() => {
     const byId = new Map(plan.modules.map((module) => [module.id, module]));
-    return plan.dependencies.filter((dependency) => dependency.kind === 'required').flatMap((dependency) => {
+    const errors: { id: string; message: string; moduleIds: string[] }[] = [];
+    for (const module of plan.modules) {
+      if (!isModuleVisibleInPlan(plan, module.id)) continue;
+      const semester = getPlannedSemester(module);
+      if (semester === null) continue;
+      const conflict = availabilityConflict(module, getTermForSemester(plan.startingTerm, semester));
+      if (conflict) errors.push({ id: `season-${module.id}`, message: conflict, moduleIds: [module.id] });
+    }
+    for (const dependency of plan.dependencies.filter((item) => item.kind === 'required')) {
       const source = byId.get(dependency.source);
       const target = byId.get(dependency.target);
-      if (!source || !target || !isModuleVisibleInPlan(plan, source.id) || !isModuleVisibleInPlan(plan, target.id) || getPlannedSemester(target) === null) return [];
-      const warnings: string[] = [];
-      if (target.status !== 'completed' && source.status !== 'completed') warnings.push(`${source.title} is a required predecessor of ${target.title} but is not completed.`);
+      if (!source || !target || !isModuleVisibleInPlan(plan, source.id) || !isModuleVisibleInPlan(plan, target.id)) continue;
       const sourceSemester = getPlannedSemester(source);
       const targetSemester = getPlannedSemester(target);
-      if (sourceSemester !== null && targetSemester !== null && sourceSemester >= targetSemester) warnings.push(`${source.title} is planned in S${sourceSemester}, not before ${target.title} in S${targetSemester}.`);
-      return warnings.map((message) => ({ id: dependency.id + message, message }));
-    });
+      if (sourceSemester !== null && targetSemester !== null && sourceSemester >= targetSemester) {
+        errors.push({ id: dependency.id, message: `${target.title} is planned in S${targetSemester}, but its required prerequisite ${source.title} is planned in S${sourceSemester}. The prerequisite must come first.`, moduleIds: [source.id, target.id] });
+      }
+    }
+    return errors;
   }, [plan]);
 
   useEffect(() => {
