@@ -11,7 +11,7 @@ Make semester planning faster and more consistent, distinguish courses completed
 3. Reset plan clears only each course's personal planned semester. Preserve all other data. Ask for confirmation.
 4. Applying recommended semesters fills only courses that are currently unplanned. Never overwrite existing assignments or change completion state. Respect season compatibility and eligibility, and explain skipped courses.
 5. Add an explicit completion-through-prior-studies flag. Such a course remains completed and contributes to total degree ECTS, completed ECTS, and completed-course count. Its ECTS must not appear as workload still to complete in its assigned semester. Example: if S1 contains 50 ECTS including a 12 ECTS course already completed before this plan, S1 workload to complete is 38 ECTS. The course remains part of the degree's total ECTS. Normal completion during the planned degree remains distinguishable.
-6. For a selected target semester, preview and add all recommended courses that are eligible and season-compatible. Respect known availability and existing dependency eligibility rules. Show excluded courses and reasons. Offer a separate picker to add other compatible courses individually. Do not auto-add extra courses or invent recommendations.
+6. For a selected target semester, list every unplanned visible course, not only courses with an official recommended semester. Preselect eligible courses and let the student add all or choose a subset. Show excluded courses and reasons. A required predecessor planned in an earlier semester is assumed successfully completed for future-semester eligibility, without changing actual progress. Recommended relationships remain guidance and do not block planning.
 7. Lay out Map by dependency depth, not planned semester. Courses with no predecessors start at the left, and dependants appear in later columns. Show availability on each card. Selecting a course highlights its incoming and outgoing edges and adjacent courses, while unrelated edges are de-emphasized where practical. Minimize crossings and overlap, handle cycles predictably, and retain usable pan, zoom, fit-to-view, selection, and mobile controls.
 
 ## Implementation plan
@@ -41,7 +41,7 @@ Make semester planning faster and more consistent, distinguish courses completed
 
 ### 5. Dependency map
 - Compute graph layers from dependency depth, independent of planned semester. Place a course after its acyclic predecessors and show it only once when it has multiple predecessors.
-- Use deterministic positioning and edge routing to reduce crossings. Preserve distinct styling for required and recommended connections.
+- Use repeated alternating barycentric ordering passes, sufficient vertical spacing, unlabelled edges, and separate smooth-step offsets to reduce crossings and visual clutter. Preserve distinct styling for required and recommended connections.
 - Detect cycles or cyclic components and place them predictably with a clear explanation.
 - Show winter, summer, or both availability on each card.
 - Selecting a card highlights incoming and outgoing connections and neighbouring cards. De-emphasize unrelated connections without making them unreadable. Clearing selection restores the normal graph.

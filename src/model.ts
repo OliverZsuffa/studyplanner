@@ -276,8 +276,15 @@ export function getModulePlanningBlockReason(plan: StudyPlan, module: StudyModul
   const conflict = availabilityConflict(module, term);
   if (conflict) return conflict;
   const byId = new Map(plan.modules.map((item) => [item.id, item]));
-  const unmet = plan.dependencies.find((dependency) => dependency.target === module.id && byId.has(dependency.source) && byId.get(dependency.source)?.status !== 'completed');
-  if (unmet) return `${byId.get(unmet.source)?.title ?? 'A prerequisite'} is not completed`;
+  const unmet = plan.dependencies.find((dependency) => {
+    if (dependency.kind !== 'required' || dependency.target !== module.id) return false;
+    const predecessor = byId.get(dependency.source);
+    if (!predecessor || predecessor.status === 'completed') return false;
+    const predecessorSemester = getPlannedSemester(predecessor);
+    // Earlier planned semesters are assumed passed for planning only. Actual progress is unchanged.
+    return predecessorSemester === null || predecessorSemester >= semester;
+  });
+  if (unmet) return `${byId.get(unmet.source)?.title ?? 'A prerequisite'} must be completed in an earlier semester`;
   return null;
 }
 

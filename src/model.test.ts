@@ -177,8 +177,34 @@ describe('prior-study credit and seasonal semester planning', () => {
     expect(getModulePlanningBlockReason(studyPlan, winterOnly, 1)).toBeNull();
   });
 
-  it('blocks courses with unfinished recorded dependencies', () => {
-    const studyPlan: StudyPlan = { ...plan, modules: plan.modules.map(module => module.id === 'a' ? { ...module, status: 'not-started' as const } : module) };
-    expect(getModulePlanningBlockReason(studyPlan, studyPlan.modules[1], 2)).toContain('A is not completed');
+  it('blocks courses whose required predecessor is not completed or planned earlier', () => {
+    const studyPlan: StudyPlan = { ...plan, modules: plan.modules.map(module => module.id === 'a' ? { ...module, status: 'not-started' as const, plannedSemester: null, semester: undefined } : module) };
+    expect(getModulePlanningBlockReason(studyPlan, studyPlan.modules[1], 2)).toContain('A must be completed in an earlier semester');
+  });
+
+  it('assumes a required predecessor planned in an earlier semester will be completed', () => {
+    const studyPlan: StudyPlan = {
+      ...plan,
+      startingTerm: { season: 'winter', year: 2026 },
+      modules: [
+        { ...plan.modules[0], id: 'foundation', status: 'not-started', plannedSemester: 1, semester: 1, availability: 'winter' },
+        { ...plan.modules[1], id: 'follow-up', status: 'not-started', plannedSemester: null, semester: undefined, availability: 'summer' },
+      ],
+      dependencies: [{ id: 'foundation-follow-up', source: 'foundation', target: 'follow-up', kind: 'required', provenance: 'official' }],
+    };
+    expect(getModulePlanningBlockReason(studyPlan, studyPlan.modules[1], 2)).toBeNull();
+    expect(studyPlan.modules[0].status).toBe('not-started');
+  });
+
+  it('does not treat recommended links as formal blockers when assigning a semester', () => {
+    const studyPlan: StudyPlan = {
+      ...plan,
+      modules: [
+        { ...plan.modules[0], id: 'optional-prep', status: 'not-started', plannedSemester: null, semester: undefined },
+        { ...plan.modules[1], id: 'course', status: 'not-started', plannedSemester: null, semester: undefined },
+      ],
+      dependencies: [{ id: 'advice', source: 'optional-prep', target: 'course', kind: 'recommended', provenance: 'user' }],
+    };
+    expect(getModulePlanningBlockReason(studyPlan, studyPlan.modules[1], 1)).toBeNull();
   });
 });
