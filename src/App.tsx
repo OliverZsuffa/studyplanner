@@ -346,13 +346,37 @@ function App() {
     setShowAdd(true);
   };
 
+  const getPlacementError = (module: StudyModule, semester: number | null): string | null => {
+    if (semester === null) return null;
+    const term = getTermForSemester(plan.startingTerm, semester);
+    if (module.availability && module.availability !== 'both' && !term) return 'Set your starting semester and year in Schedule to verify seasonal availability.';
+    const seasonConflict = availabilityConflict(module, term);
+    if (seasonConflict) return seasonConflict;
+    for (const dependency of plan.dependencies) {
+      if (dependency.kind !== 'required') continue;
+      if (dependency.target === module.id) {
+        const prerequisite = plan.modules.find(item => item.id === dependency.source);
+        const prerequisiteSemester = prerequisite ? getPlannedSemester(prerequisite) : null;
+        if (prerequisite && prerequisite.status !== 'completed' && prerequisiteSemester !== null && prerequisiteSemester >= semester) return `${module.title} cannot be planned in S${semester}: required prerequisite ${prerequisite.title} is planned in S${prerequisiteSemester}.`;
+      }
+      if (dependency.source === module.id) {
+        const dependent = plan.modules.find(item => item.id === dependency.target);
+        const dependentSemester = dependent ? getPlannedSemester(dependent) : null;
+        if (dependent && dependent.status !== 'completed' && dependentSemester !== null && dependentSemester <= semester) return `${module.title} cannot be planned in S${semester}: it is a prerequisite of ${dependent.title}, which is already planned in S${dependentSemester}.`;
+      }
+    }
+    return null;
+  };
+
   const moveModule = (id: string, semester: number | null) => {
     const module = plan.modules.find((item) => item.id === id);
-    const term = semester === null ? null : getTermForSemester(plan.startingTerm, semester);
-    if (module && semester !== null && module.availability && module.availability !== 'both' && !term) { setToast('Set your starting semester and year in Schedule before assigning a winter-only or summer-only course.'); return; }
-    const conflict = module && semester !== null ? availabilityConflict(module, term) : null;
-    if (conflict) { setToast(conflict); return; }
+    if (module && semester !== null) {
+      const conflict = getPlacementError(module, semester);
+      if (conflict) { setToast(conflict, 'error'); return; }
+    }
     setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === id ? withPlannedSemester(module, semester) : module) }));
+    setDragHoverSemester(undefined);
+    setDraggedModuleId(null);
     setToast(semester === null ? 'Module moved to unplanned' : `Moved to semester ${semester}`);
   };
 
