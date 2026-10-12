@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, withPlannedSemester, type StudyPlan } from './model';
+import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts, type StudyPlan } from './model';
 
 const plan: StudyPlan = {
   name: 'Test',
@@ -142,5 +142,43 @@ describe('elective selection and recommendations', () => {
     const original = migrateStudyPlan(plan).modules[0];
     const recommended = { ...original, recommendation: 'strongly-recommended' as const };
     expect(recommended).toMatchObject({ recommendation: 'strongly-recommended', status: 'completed', plannedSemester: 1 });
+  });
+});
+
+
+describe('prior-study credit and seasonal semester planning', () => {
+  it('counts prior-study courses in degree and completed ECTS, but not semester workload', () => {
+    const prior = { ...plan.modules[0], id: 'prior', status: 'completed' as const, result: undefined, completedThroughPriorStudy: true, ects: 12, plannedSemester: 1 };
+    const remaining = { ...plan.modules[1], id: 'remaining', status: 'not-started' as const, result: undefined, ects: 38, plannedSemester: 1 };
+    const studyPlan: StudyPlan = { ...plan, modules: [prior, remaining], dependencies: [] };
+    expect(getProgress(studyPlan)).toMatchObject({ completed: 1, total: 2, totalEcts: 50, completedEcts: 12 });
+    expect(getSemesterWorkloadEcts(studyPlan.modules)).toBe(38);
+  });
+
+  it('migrates prior-study completion safely and clears it for incomplete modules', () => {
+    const legacy = migrateStudyPlan({ ...plan, modules: [
+      { ...plan.modules[0], completedThroughPriorStudy: true, status: 'not-started' },
+      { ...plan.modules[1], completedThroughPriorStudy: true, status: 'completed' },
+    ] });
+    expect(legacy.modules[0].completedThroughPriorStudy).toBe(false);
+    expect(legacy.modules[1].completedThroughPriorStudy).toBe(true);
+  });
+
+  it('filters courses by their explicit seasonal availability', () => {
+    expect(matchesSeasonFilter({ ...plan.modules[0], availability: 'winter' }, 'winter')).toBe(true);
+    expect(matchesSeasonFilter({ ...plan.modules[0], availability: 'winter' }, 'summer')).toBe(false);
+    expect(matchesSeasonFilter({ ...plan.modules[0], availability: 'both' }, 'summer')).toBe(true);
+  });
+
+  it('blocks seasonal assignments when the target term is incompatible', () => {
+    const winterOnly = { ...plan.modules[1], availability: 'winter' as const, status: 'not-started' as const };
+    const studyPlan: StudyPlan = { ...plan, startingTerm: { season: 'winter', year: 2026 }, modules: [plan.modules[0], winterOnly], dependencies: [] };
+    expect(getModulePlanningBlockReason(studyPlan, winterOnly, 2)).toContain('summer semester');
+    expect(getModulePlanningBlockReason(studyPlan, winterOnly, 1)).toBeNull();
+  });
+
+  it('blocks courses with unfinished recorded dependencies', () => {
+    const studyPlan: StudyPlan = { ...plan, modules: plan.modules.map(module => module.id === 'a' ? { ...module, status: 'not-started' as const } : module) };
+    expect(getModulePlanningBlockReason(studyPlan, studyPlan.modules[1], 2)).toContain('A is not completed');
   });
 });
