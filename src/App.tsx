@@ -704,7 +704,7 @@ function App() {
         {!editingModuleId && <label className="form-label">Recommended preparation <span className="optional-label">OPTIONAL</span><select value={newDependency} onChange={(event) => setNewDependency(event.target.value)}><option value="">No connection yet</option>{plan.modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select><small>This creates a suggested connection, not a formal prerequisite.</small></label>}
         <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setShowAdd(false)}>Cancel</button><button type="submit" className="button button-primary"><FilePlus2 size={16} /> {editingModuleId ? 'Save changes' : 'Add to plan'}</button></div>
       </form></div>}
-      {toast && <div className={'toast toast-' + toastType} role={toastType === 'error' ? 'alert' : 'status'}>{toastType === 'error' ? <AlertCircle size={17} /> : toastType === 'info' ? <CircleHelp size={17} /> : <CheckCircle2 size={17} />} <span>{toast}</span><button aria-label="Dismiss notification" onClick={() => notify('')}><X size={14} /></button></div>
+      {toast && <div className={'toast toast-' + toastType} role={toastType === 'error' ? 'alert' : 'status'}>{toastType === 'error' ? <AlertCircle size={17} /> : toastType === 'info' ? <CircleHelp size={17} /> : <CheckCircle2 size={17} />} <span>{toast}</span><button aria-label="Dismiss notification" onClick={() => notify('')}><X size={14} /></button></div>}
     </div>
   );
 }
