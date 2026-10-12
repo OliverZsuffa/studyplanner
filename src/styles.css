@@ -601,3 +601,55 @@ button, select, input { touch-action: manipulation; }
 .copy-sessions-row small { grid-column:1 / -1; color:#7d897d; font-size:10px; line-height:1.5; }
 .copy-sessions-row button:disabled { cursor:not-allowed; opacity:.5; }
 @media (max-width: 520px) { .copy-sessions-row { grid-template-columns:minmax(0,1fr); } .copy-sessions-row small { grid-column:auto; } }
+
+
+/* Request 011: semester planning actions and dependency-focused map. */
+.semester-planner-actions { display:flex; flex-direction:column; gap:13px; margin:14px 0; padding:15px; border:1px solid #e4e9e1; border-radius:12px; background:#f8faf7; }
+.semester-planner-actions-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+.semester-planner-actions-heading > div:first-child { display:flex; flex-direction:column; gap:5px; }
+.semester-planner-actions-heading strong { color:#344638; font-size:13px; }
+.semester-planner-actions-heading small,.semester-planner-footnote { color:#808b80; font-size:10px; line-height:1.5; }
+.semester-planner-buttons { display:flex; flex-wrap:wrap; gap:7px; }
+.semester-planner-row { display:grid; grid-template-columns:minmax(130px,.7fr) minmax(180px,1fr) minmax(220px,1.3fr) auto; align-items:end; gap:9px; }
+.semester-planner-row label { display:flex; min-width:0; flex-direction:column; gap:6px; color:#657365; font-size:10px; font-weight:700; }
+.semester-planner-row select { width:100%; min-width:0; min-height:40px; padding:8px 10px; border:1px solid #dfe6dc; border-radius:8px; color:#435344; background:#fff; font-size:11px; }
+.semester-planner-row .button { min-height:40px; white-space:normal; }
+.semester-planner-footnote { margin:0; }
+.prior-study-toggle { display:flex; align-items:flex-start; gap:9px; margin:12px 0; padding:12px; border:1px solid #dce7dc; border-radius:9px; background:#f7faf6; cursor:pointer; }
+.prior-study-toggle input { margin-top:3px; accent-color:#285b43; }
+.prior-study-toggle span { display:flex; flex-direction:column; gap:4px; }
+.prior-study-toggle strong { color:#365440; font-size:11px; }
+.prior-study-toggle small { color:#788679; font-size:10px; line-height:1.5; }
+.node-season { display:inline-flex; align-items:center; padding:2px 5px; border-radius:4px; font-size:8px; font-weight:700; white-space:nowrap; }
+.node-season.season-winter { color:#4b6f9d; background:#eaf1fb; }
+.node-season.season-summer { color:#8b6b2e; background:#fbf2df; }
+.node-season.season-both { color:#52745a; background:#eaf4e9; }
+.graph-panel .react-flow { inset:0 0 auto; height:600px; }
+.graph-legend { top:12px; bottom:auto; }
+.map-dependency-editor { position:relative; z-index:5; margin:14px 0; border:1px solid #e2e8df; }
+.map-dependency-editor .schedule-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dependency-editor-heading h3 { margin-bottom:6px; }
+.dependency-editor-heading p { margin-bottom:0; }
+.graph-cycle-warning { color:#a56c23 !important; font-weight:700; }
+.dark-mode .semester-planner-actions,.dark-mode .prior-study-toggle { background:#202a36; border-color:#3b4b40; }
+.dark-mode .semester-planner-actions-heading strong,.dark-mode .prior-study-toggle strong { color:#d7e9dc; }
+.dark-mode .semester-planner-row label,.dark-mode .prior-study-toggle small { color:#b0c0b3; }
+.dark-mode .semester-planner-row select { color:#e0e8ef; background:#1b232d; border-color:#36414e; }
+.dark-mode .node-season.season-winter { color:#c2d9fa; background:#263b55; }
+.dark-mode .node-season.season-summer { color:#f2dca5; background:#4a3c20; }
+.dark-mode .node-season.season-both { color:#c5e5c9; background:#294632; }
+@media (max-width:900px) {
+  .semester-planner-actions-heading { flex-direction:column; }
+  .semester-planner-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+  .semester-planner-actions { padding:11px; }
+  .semester-planner-buttons { width:100%; }
+  .semester-planner-buttons .button { flex:1; white-space:normal; }
+  .semester-planner-row { grid-template-columns:minmax(0,1fr); }
+  .semester-planner-row .button { width:100%; }
+  .map-dependency-editor { margin:12px 0; padding:12px; }
+  .map-dependency-editor .schedule-fields { grid-template-columns:minmax(0,1fr); }
+  .graph-legend { right:10px; left:10px; max-width:none; }
+  .prior-study-toggle { align-items:flex-start; }
+}

@@ -88,7 +88,7 @@ export default function SchedulingPanel({ plan, setPlan, onSelectModule, compact
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const eventsOnDay = (day: number) => monthEvents.filter(e => Number(e.date.slice(-2)) === day);
-  const tabs: {id: PanelTab; label: string}[] = [{id:'courses',label:'Course sessions'},{id:'timetable',label:'Timetable'},{id:'calendar',label:'Calendar & exams'},{id:'dependencies',label:'Dependencies'}];
+  const tabs: {id: PanelTab; label: string}[] = [{id:'courses',label:'Course sessions'},{id:'timetable',label:'Timetable'},{id:'calendar',label:'Calendar & exams'}];
 
   return <section className={'schedule-panel ' + (compact ? 'schedule-panel-compact' : '')}>
     {!compact && <><div className="schedule-heading"><div><div className="eyebrow">STUDY ORGANISER</div><h2>Timetable & calendar</h2><p>Enter real course information yourself. The planner never guesses teaching dates, exam dates or locations.</p></div></div>

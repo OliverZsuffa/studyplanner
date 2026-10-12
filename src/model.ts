@@ -34,6 +34,8 @@ export interface StudyModule {
   sourceLocation?: string;
   ects: number;
   status: ModuleStatus;
+  /** Completed before this degree plan began; counts toward degree completion but not planned-semester workload. */
+  completedThroughPriorStudy?: boolean;
   /** Guidance only; independent from progress and semester planning. */
   recommendation?: ModuleRecommendation;
   description: string;
@@ -87,6 +89,7 @@ export function migrateStudyPlan(value: StudyPlan): StudyPlan {
       ...module,
       plannedSemester: typeof module.plannedSemester === 'number' ? module.plannedSemester : typeof module.semester === 'number' ? module.semester : null,
       recommendedSemester: typeof module.recommendedSemester === 'number' ? module.recommendedSemester : null,
+      completedThroughPriorStudy: module.status === 'completed' && module.completedThroughPriorStudy === true,
       recommendation: module.recommendation === 'recommended' || module.recommendation === 'strongly-recommended' ? module.recommendation : 'not-reviewed',
       availability: module.availability === 'winter' || module.availability === 'summer' ? module.availability : 'both',
       components: Array.isArray(module.components) ? module.components : [],
@@ -253,7 +256,7 @@ export function getProgress(plan: StudyPlan) {
   const completed = counted.filter((module) => module.status === 'completed').length;
   const totalEcts = counted.reduce((sum, module) => sum + module.ects, 0);
   const completedEcts = counted
-    .filter((module) => module.result === 'passed')
+    .filter((module) => module.result === 'passed' || module.completedThroughPriorStudy === true)
     .reduce((sum, module) => sum + module.ects, 0);
   return {
     completed,
@@ -262,6 +265,30 @@ export function getProgress(plan: StudyPlan) {
     totalEcts,
     completedEcts,
   };
+}
+
+
+/** Explain why a course cannot be newly assigned to the requested semester. */
+export function getModulePlanningBlockReason(plan: StudyPlan, module: StudyModule, semester: number): string | null {
+  if (module.status === 'completed') return 'Already completed';
+  const term = getTermForSemester(plan.startingTerm, semester);
+  if (module.availability && module.availability !== 'both' && !term) return 'Set the starting semester and year to verify seasonal availability';
+  const conflict = availabilityConflict(module, term);
+  if (conflict) return conflict;
+  const byId = new Map(plan.modules.map((item) => [item.id, item]));
+  const unmet = plan.dependencies.find((dependency) => dependency.target === module.id && byId.has(dependency.source) && byId.get(dependency.source)?.status !== 'completed');
+  if (unmet) return `${byId.get(unmet.source)?.title ?? 'A prerequisite'} is not completed`;
+  return null;
+}
+
+/** A module can be offered in the selected season, or in both seasons. */
+export function matchesSeasonFilter(module: StudyModule, season: 'winter' | 'summer' | 'all'): boolean {
+  return season === 'all' || !module.availability || module.availability === 'both' || module.availability === season;
+}
+
+/** Count the ECTS that remain to be completed within a planned semester. */
+export function getSemesterWorkloadEcts(modules: StudyModule[]): number {
+  return modules.filter((module) => module.completedThroughPriorStudy !== true).reduce((sum, module) => sum + module.ects, 0);
 }
 
 export function getWeightedGradeAverage(plan: StudyPlan) {

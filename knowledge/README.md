@@ -112,3 +112,12 @@ The prototype includes a semester Kanban with drag-and-drop plus an accessible s
 - Mobile CSS uses touch-sized controls, a swipeable semester board, responsive filters/actions, full-width bottom-sheet-style forms, safe-area spacing, and reduced-motion handling. Drag-and-drop remains optional; semester selects are retained.
 - Existing Plan/Map/List/Schedule workspaces, JSON portability, import/export, electives, prerequisites, grades, course availability, calendar, exams, and timetable conflict validation remain in place.
 - Verification is tracked in Request 010 and PR #9. The feature is not considered complete/live until the current branch's TypeScript/build/test workflow and the post-merge Pages deployment both succeed. A real-device/browser smoke test remains a separate check if no browser test environment is available.
+
+
+## Semester planning and dependency map (Request 011)
+
+- Course availability filters distinguish winter, summer, and courses offered in both seasons. They use explicit availability and never infer a season from the official recommended semester.
+- The semester planning actions are conservative: reset clears only planned semester assignments; applying official recommended semesters fills only unplanned courses; semester-specific bulk addition considers season compatibility and unfinished recorded dependencies; extra compatible courses are selected individually.
+- A course completed through prior studies remains part of the degree's total ECTS and completed ECTS, but is excluded from the workload still to complete in its assigned semester. Legacy plans default this flag to false, and it is retained in the existing full-object JSON persistence/export path.
+- Dependency editing is located in Map. The graph layers courses by dependency depth, uses deterministic barycentric ordering to reduce edge crossings, displays seasonal availability, highlights selected-course connections, and puts unresolved cyclic components in a clearly flagged final layer.
+- Request 011 implementation is tracked in [PR #11](https://github.com/OliverZsuffa/studyplanner/pull/11). Only report the work as complete after the latest build and tests pass, the PR is merged, and the Pages deployment and live site are verified.
