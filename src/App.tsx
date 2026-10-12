@@ -228,6 +228,10 @@ function App() {
       if (!isModuleVisibleInPlan(plan, module.id)) continue;
       const semester = getPlannedSemester(module);
       if (semester === null) continue;
+      if (module.availability && module.availability !== 'both' && !plan.startingTerm) {
+        errors.push({ id: `term-${module.id}`, message: `Set the starting semester and year to verify the seasonal availability of ${module.title}.`, moduleIds: [module.id] });
+        continue;
+      }
       const conflict = availabilityConflict(module, getTermForSemester(plan.startingTerm, semester));
       if (conflict) errors.push({ id: `season-${module.id}`, message: conflict, moduleIds: [module.id] });
     }
