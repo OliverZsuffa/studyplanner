@@ -711,3 +711,5 @@ button, select, input { touch-action: manipulation; }
 .planning-errors > ul { display: grid; gap: 7px; margin: 0; padding: 0 14px 14px; list-style: none; }
 .planning-errors > ul > li { display: flex; align-items: flex-start; gap: 8px; padding-top: 8px; border-top: 1px solid #f5dada; font-size: 12px; line-height: 1.45; }
 .planning-errors > ul > li svg { flex: 0 0 auto; margin-top: 2px; }
+
+.schedule-notice.success { color: #23643a; border-color: #b5d9bf; background: #effaf2; }
