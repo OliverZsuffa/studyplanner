@@ -19,7 +19,7 @@ import {
   CircleHelp, Clock3, FilePlus2, Filter, GraduationCap, LayoutGrid, List, ClipboardPaste,
   Plus, Search, Settings2, Sparkles, Target, X, Zap, Moon, Sun, CalendarDays, Award, Columns3, Pencil, ArrowRight, Route,
 } from 'lucide-react';
-import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts, getRecommendedSemester } from './model';
+import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getModuleRequirementGroups, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, statusLabels, type Dependency, type ModuleRecommendation, type ModuleStatus, type StudyModule, type StudyPlan, withPlannedSemester, getModulePlanningBlockReason, getSemesterPlanningCandidates, matchesSeasonFilter, getSemesterWorkloadEcts, getRecommendedSemester } from './model';
 import { samplePlan } from './samplePlan';
 import ImportWizard from './ImportWizard';
 import QuickAddWizard from './QuickAddWizard';
@@ -206,21 +206,7 @@ function App() {
   const semesterTotals = useMemo(() => semesters.map((semester) => { const modules = plan.modules.filter((module) => getPlannedSemester(module) === semester && isModuleCountedInPlan(plan, module.id)); return { semester, modules, ects: getSemesterWorkloadEcts(modules), completed: modules.filter((module) => module.completedThroughPriorStudy !== true && module.result === 'passed').reduce((sum, module) => sum + module.ects, 0) }; }), [plan, semesters]);
   const selected = plan.modules.find((module) => module.id === selectedId) ?? null;
   const targetSemester = Math.max(1, Math.min(20, Number(planningSemester) || 1));
-  const getReplanningBlockReason = (module: StudyModule, semester: number): string | null => {
-    const basicReason = getModulePlanningBlockReason(plan, module, semester);
-    if (basicReason) return basicReason;
-    for (const dependency of plan.dependencies) {
-      if (dependency.kind !== 'required' || dependency.source !== module.id) continue;
-      const dependent = plan.modules.find(item => item.id === dependency.target);
-      const dependentSemester = dependent ? getPlannedSemester(dependent) : null;
-      if (dependent && dependent.status !== 'completed' && dependentSemester !== null && dependentSemester <= semester) return `${module.title} cannot be moved to S${semester}: it is a prerequisite of ${dependent.title}, which is planned in S${dependentSemester}.`;
-    }
-    return null;
-  };
-  const semesterPlanningCandidates = plan.modules
-    .filter(module => isModuleVisibleInPlan(plan, module.id) && (getPlannedSemester(module) === null || (includeAssignedCourses && getPlannedSemester(module) !== targetSemester)))
-    .map(module => ({ module, currentSemester: getPlannedSemester(module), reason: getReplanningBlockReason(module, targetSemester) }))
-    .sort((a,b) => Number(a.reason !== null) - Number(b.reason !== null) || a.module.title.localeCompare(b.module.title));
+  const semesterPlanningCandidates = getSemesterPlanningCandidates(plan, targetSemester, includeAssignedCourses);
   const compatibleExtraCourses = semesterPlanningCandidates.filter(item => item.reason === null).map(item => item.module);
   const recommendedSemesterPreview = semesterPlanningCandidates;
   const filteredModules = useMemo(() => visiblePlan.modules.filter((module) => {
