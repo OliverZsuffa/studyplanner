@@ -65,7 +65,7 @@ function ModuleCard({ data }: NodeProps<ModuleFlowNode>) {
         {module.status === 'completed' ? <CheckCircle2 size={15} /> : available ? <span className="available-dot" /> : null}
       </div>
       <div className="node-title">{module.title}</div>
-      <div className="node-meta"><span>{module.ects} ECTS</span><span className={'node-season season-' + availability}>{availability === 'both' ? 'Winter + summer' : availability === 'winter' ? 'Winter semester' : 'Summer semester'}</span><span>{plannedSemester ? `Planned S${plannedSemester}` : 'Unplanned'}</span>{module.recommendedSemester ? <span>Official S{module.recommendedSemester}</span> : null}</div>
+      <div className="node-meta"><span>{module.ects} ECTS</span><span className={'node-season season-' + availability}>{availability === 'both' ? 'Winter + summer' : availability === 'winter' ? 'Winter semester' : 'Summer semester'}</span><span>{plannedSemester ? `Planned S${plannedSemester}` : 'Unplanned'}</span>{getRecommendedSemester(module) ? <span>Recommended S{getRecommendedSemester(module)}</span> : null}</div>
       <div className="node-bottom">
         <span className={'node-status status-label-' + module.status}>{module.status === 'completed' ? 'Completed' : module.status === 'in-progress' ? 'In progress' : available ? 'Available next' : 'Later'}</span>
         <span className="node-links">{incoming + outgoing > 0 ? incoming + outgoing + ' links' : 'No links'}</span>
@@ -334,14 +334,14 @@ function App() {
   }, [plan.dependencies]);
 
   const openAddModule = () => {
-    setEditingModuleId(null); setNewTitle(''); setNewCode('CUSTOM'); setNewSemester('1'); setNewEcts('5');
+    setEditingModuleId(null); setNewTitle(''); setNewCode('CUSTOM'); setNewSemester('1'); setNewRecommendedSemester(''); setNewEcts('5');
     setNewCategory('Core'); setNewDescription(''); setNewStatus('not-started'); setNewResult('unrecorded'); setNewGrade(''); setNewDependency('');
     setShowAdd(true);
   };
 
   const openEditModule = (module: StudyModule) => {
     setEditingModuleId(module.id); setNewTitle(module.title); setNewCode(module.code); setNewSemester(String(getPlannedSemester(module) ?? ''));
-    setNewEcts(String(module.ects)); setNewCategory(module.category); setNewDescription(module.description);
+    setNewEcts(String(module.ects)); setNewRecommendedSemester(String(getRecommendedSemester(module) ?? '')); setNewCategory(module.category); setNewDescription(module.description);
     setNewStatus(module.status); setNewResult(module.result ?? 'unrecorded'); setNewGrade(module.grade === undefined ? '' : String(module.grade)); setNewDependency('');
     setShowAdd(true);
   };
@@ -391,12 +391,13 @@ function App() {
 
   const applyRecommendedSemesters = () => {
     const nextModules = plan.modules.map(module => {
-      if (getPlannedSemester(module) !== null || module.recommendedSemester == null || !isModuleVisibleInPlan(plan, module.id)) return module;
-      return getModulePlanningBlockReason(plan, module, module.recommendedSemester) ? module : withPlannedSemester(module, module.recommendedSemester);
+      const recommended = getRecommendedSemester(module);
+      if (getPlannedSemester(module) !== null || recommended == null || !isModuleVisibleInPlan(plan, module.id)) return module;
+      return getModulePlanningBlockReason(plan, module, recommended) ? module : withPlannedSemester(module, recommended);
     });
     const assigned = nextModules.filter((module,index)=>getPlannedSemester(module)!==null&&getPlannedSemester(plan.modules[index])===null).length;
-    const skipped = plan.modules.filter(module=>getPlannedSemester(module)===null&&module.recommendedSemester!=null&&isModuleVisibleInPlan(plan,module.id))
-      .map(module=>({title:module.title,reason:getModulePlanningBlockReason(plan,module,module.recommendedSemester!)})).filter(item=>item.reason);
+    const skipped = plan.modules.filter(module=>getPlannedSemester(module)===null&&getRecommendedSemester(module)!=null&&isModuleVisibleInPlan(plan,module.id))
+      .map(module=>({title:module.title,reason:getModulePlanningBlockReason(plan,module,getRecommendedSemester(module)!)})).filter(item=>item.reason);
     setPlan({...plan,modules:nextModules});
     setPlanningReport(skipped.map(item=>({title:item.title,reason:item.reason!})));
     setRecommendedPreviewOpen(false);
@@ -436,12 +437,13 @@ function App() {
     if (!title) return;
     const semester = newSemester.trim() ? Math.max(1, Math.min(20, Number(newSemester) || 1)) : null;
     const grade = newGrade.trim() ? Number(newGrade) : undefined;
+    const recommendedSemester = newRecommendedSemester.trim() ? Math.max(1, Math.min(20, Number(newRecommendedSemester) || 1)) : null;
     const result = newResult === 'unrecorded' ? undefined : newResult;
     if (editingModuleId) {
       setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === editingModuleId ? {
         ...module, title, code: newCode.trim() || 'CUSTOM', category: newCategory.trim() || 'Other',
         description: newDescription.trim(), ects: Math.max(0, Math.min(60, Number(newEcts) || 0)),
-        semester: semester ?? undefined, plannedSemester: semester, status: newStatus, completedThroughPriorStudy: newStatus === 'completed' ? module.completedThroughPriorStudy : false, result,
+        semester: semester ?? undefined, plannedSemester: semester, suggestedSemester: recommendedSemester, status: newStatus, completedThroughPriorStudy: newStatus === 'completed' ? module.completedThroughPriorStudy : false, result,
         grade: grade !== undefined && Number.isFinite(grade) && grade >= 1 && grade <= 4 ? grade : undefined,
       } : module) }));
       setToast('Module updated');
@@ -449,7 +451,7 @@ function App() {
     } else {
       const id = 'module-' + Date.now().toString(36);
       const module: StudyModule = {
-        id, title, code: newCode.trim() || 'CUSTOM', semester: semester ?? undefined, plannedSemester: semester, recommendedSemester: null,
+        id, title, code: newCode.trim() || 'CUSTOM', semester: semester ?? undefined, plannedSemester: semester, recommendedSemester: null, suggestedSemester: recommendedSemester,
         ects: Math.max(0, Math.min(60, Number(newEcts) || 0)), status: newStatus,
         description: newDescription.trim(), category: newCategory.trim() || 'Other',
         ...(grade !== undefined && Number.isFinite(grade) && grade >= 1 && grade <= 4 ? { grade } : {}),
@@ -577,7 +579,7 @@ function App() {
                         {columnModules.map((module) => <article className={'kanban-card ' + (selectedId === module.id ? 'selected' : '')} key={module.id} draggable onDragStart={(event) => { event.dataTransfer.setData('text/studyplanner-module', module.id); event.dataTransfer.effectAllowed = 'move'; }} onClick={() => setSelectedId(module.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(module.id); } }} tabIndex={0} aria-label={`${module.title}, ${module.ects} ECTS`}>
                           <div className="kanban-card-top"><span>{module.code}</span><button className="kanban-edit" aria-label={`Edit ${module.title}`} onClick={(event) => { event.stopPropagation(); openEditModule(module); }}><Pencil size={13} /></button></div>
                           <strong>{module.title}</strong><p>{module.category} · {module.ects} ECTS</p>
-                          <div className="kanban-card-footer"><span className={'status-pill ' + module.status}>{statusLabels[module.status]}</span>{module.recommendation && module.recommendation !== 'not-reviewed' ? <span className={'recommendation-pill ' + module.recommendation}>{module.recommendation === 'strongly-recommended' ? 'Strongly recommended' : 'Recommended'}</span> : null}{module.recommendedSemester && <small>Official S{module.recommendedSemester}</small>}</div>
+                          <div className="kanban-card-footer"><span className={'status-pill ' + module.status}>{statusLabels[module.status]}</span>{module.recommendation && module.recommendation !== 'not-reviewed' ? <span className={'recommendation-pill ' + module.recommendation}>{module.recommendation === 'strongly-recommended' ? 'Strongly recommended' : 'Recommended'}</span> : null}</div>
                           <label className="kanban-move" onClick={(event) => event.stopPropagation()}>Move to<select aria-label={`Move ${module.title} to semester`} value={getPlannedSemester(module) ?? ''} onChange={(event) => moveModule(module.id, event.target.value === '' ? null : Number(event.target.value))}><option value="">Unplanned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm, semester))}` : `Semester ${semester}`}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? `S${Math.max(...semesters) + 1} · ${getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters) + 1))}` : `Semester ${Math.max(...semesters) + 1}`}</option></select></label>
                         </article>)}
                         {columnModules.length === 0 && <div className="kanban-empty">Drop a module here or use its “Move to” menu.</div>}
@@ -683,7 +685,8 @@ function App() {
         <div className="modal-heading"><div><div className="eyebrow">YOUR STUDY PLAN</div><h2>{editingModuleId ? 'Edit module' : 'Add a module'}</h2><p>Keep course details and planning information together.</p></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setShowAdd(false)}><X size={18} /></button></div>
         <label className="form-label">Module name<input autoFocus required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="e.g. Applied Statistics" /></label>
         <div className="form-row"><label className="form-label">Module code<input value={newCode} onChange={(event) => setNewCode(event.target.value)} placeholder="e.g. IN0001" /></label><label className="form-label">Category<input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="e.g. Computer science" /></label></div>
-        <div className="form-row"><label className="form-label">Planned semester<input type="number" min="1" max="20" value={newSemester} onChange={(event) => setNewSemester(event.target.value)} placeholder="Unplanned" /><small>Leave blank to keep this module unplanned.</small></label><label className="form-label">ECTS credits<input type="number" min="0" max="60" step=".5" value={newEcts} onChange={(event) => setNewEcts(event.target.value)} required /></label></div>
+        <div className="form-row"><label className="form-label">Planned semester<input type="number" min="1" max="20" value={newSemester} onChange={(event) => setNewSemester(event.target.value)} placeholder="Unplanned" /><small>Your current intended semester.</small></label><label className="form-label">ECTS credits<input type="number" min="0" max="60" step=".5" value={newEcts} onChange={(event) => setNewEcts(event.target.value)} required /></label></div>
+        <label className="form-label">Recommended semester<select value={newRecommendedSemester} onChange={(event) => setNewRecommendedSemester(event.target.value)}><option value="">Not set</option>{Array.from({length:20},(_,index)=>index+1).map(semester=><option key={semester} value={semester}>{plan.startingTerm ? `S${semester} · ${getTermLabel(getTermForSemester(plan.startingTerm,semester))}` : `Semester ${semester}`}</option>)}</select><small>Your recommendation is separate from the semester you actually plan to take the course.</small></label>
         <label className="form-label">Description<textarea rows={3} value={newDescription} onChange={(event) => setNewDescription(event.target.value)} placeholder="What does this module cover?" /></label>
         <div className="form-row"><label className="form-label">Progress<select value={newStatus} onChange={(event) => setNewStatus(event.target.value as ModuleStatus)}><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option></select></label><label className="form-label">Exam result<select value={newResult} onChange={(event) => setNewResult(event.target.value as 'unrecorded' | 'passed' | 'failed')}><option value="unrecorded">Not recorded</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label></div>
         <label className="form-label">Grade <small>Optional, German scale 1.0–4.0 for the weighted average. Failed or ungraded courses are excluded.</small><input type="number" min="1" max="4" step=".1" value={newGrade} onChange={(event) => setNewGrade(event.target.value)} placeholder="e.g. 2.3" /></label>
