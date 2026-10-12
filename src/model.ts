@@ -30,6 +30,8 @@ export interface StudyModule {
   plannedSemester?: number | null;
   /** Semester shown in the official study plan, if known. */
   recommendedSemester?: number | null;
+  /** User's editable planning recommendation. When set, it overrides the official recommendation for bulk planning. */
+  suggestedSemester?: number | null;
   sourceEvidence?: string;
   sourceLocation?: string;
   ects: number;
