@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-deploy-v2
+  group: pages-deploy-v3-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
