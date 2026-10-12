@@ -155,6 +155,7 @@ function App() {
   const [newDependency, setNewDependency] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showSessionEditor, setShowSessionEditor] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const [tourOpen, setTourOpen] = useState(() => { try { return localStorage.getItem('studyplanner.tour-seen') !== 'true'; } catch { return false; } });
   const [tourStep, setTourStep] = useState(0);
@@ -209,7 +210,8 @@ function App() {
         document.querySelector<HTMLInputElement>('.search-box input')?.focus();
       }
       if (event.key === 'Escape') {
-        if (showQuickAdd) setShowQuickAdd(false);
+        if (showSessionEditor) setShowSessionEditor(false);
+        else if (showQuickAdd) setShowQuickAdd(false);
         else if (showImport) setShowImport(false);
         else if (showAdd) setShowAdd(false);
         else if (tourOpen) finishTour();
@@ -217,7 +219,7 @@ function App() {
     };
     window.addEventListener('keydown', handleShortcut);
     return () => window.removeEventListener('keydown', handleShortcut);
-  }, [showQuickAdd, showImport, showAdd, tourOpen]);
+  }, [showSessionEditor, showQuickAdd, showImport, showAdd, tourOpen]);
 
   const finishTour = () => {
     setTourOpen(false);
@@ -501,6 +503,7 @@ function App() {
                   {!detailsCollapsed && <>
                   <div className="details-code">{selected.code} <span>·</span> {selected.category}</div>
                   <div className="detail-badges"><span className="ects-badge">{selected.ects} ECTS</span><span className={'status-pill ' + selected.status}>{statusLabels[selected.status]}</span>{selected.recommendation && selected.recommendation !== 'not-reviewed' ? <span className={'recommendation-pill ' + selected.recommendation}>{selected.recommendation === 'strongly-recommended' ? 'Strongly recommended' : 'Recommended'}</span> : null}</div>
+                  <section className="course-sessions-shortcut"><div><strong>Teaching sessions & exams</strong><span>{(selected.components ?? []).length} teaching component{(selected.components ?? []).length === 1 ? '' : 's'} · {(selected.exams ?? []).length} exam{(selected.exams ?? []).length === 1 ? '' : 's'}</span></div><button type="button" className="button button-quiet" onClick={() => setShowSessionEditor(true)}><CalendarDays size={15} /> Edit here</button></section>
                   <details className="detail-advanced"><summary>Optional planning guidance <span>{selected.recommendation === 'strongly-recommended' ? 'Strongly recommended' : selected.recommendation === 'recommended' ? 'Recommended' : 'No recommendation set'}</span></summary><p>This is your own optional rating of how useful a course seems. It is not an official assessment and does not change progress, semester, or ECTS.</p><label className="field-label" htmlFor="module-recommendation">Course recommendation</label><select id="module-recommendation" className="status-select detail-field-gap" value={selected.recommendation ?? 'not-reviewed'} onChange={(event) => changeRecommendation(selected.id, event.target.value as ModuleRecommendation)}><option value="not-reviewed">No recommendation set</option><option value="recommended">Recommended</option><option value="strongly-recommended">Strongly recommended</option></select></details>
                   <label className="field-label" htmlFor="planned-semester">WHEN DO YOU PLAN TO TAKE IT?</label>
                   <select id="planned-semester" className="status-select detail-field-gap" value={getPlannedSemester(selected) ?? ''} onChange={(event) => { const next = event.target.value === '' ? null : Number(event.target.value); const mapped = next === null ? null : getTermForSemester(plan.startingTerm, next); if (next !== null && selected.availability && selected.availability !== 'both' && !mapped) { setToast('Set your starting semester and year in Schedule before assigning a winter-only or summer-only course.'); return; } const problem = next === null ? null : availabilityConflict(selected, mapped); if (problem) { setToast(problem); return; } setPlan((current) => ({ ...current, modules: current.modules.map((module) => module.id === selected.id ? { ...module, semester: next ?? undefined, plannedSemester: next } : module) })); }}><option value="">Not planned</option>{semesters.map((semester) => <option key={semester} value={semester}>{plan.startingTerm ? 'S'+semester+' · '+getTermLabel(getTermForSemester(plan.startingTerm, semester)) : 'Semester '+semester}</option>)}<option value={Math.max(...semesters) + 1}>{plan.startingTerm ? 'S'+(Math.max(...semesters)+1)+' · '+getTermLabel(getTermForSemester(plan.startingTerm, Math.max(...semesters)+1)) : 'Semester '+(Math.max(...semesters)+1)}</option></select>
@@ -545,6 +548,7 @@ function App() {
       </main>
 
       {tourOpen && <div className="tour-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) finishTour(); }}><section className="tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tour-title"><div className="tour-dialog-top"><span className="tour-icon"><Route size={20} /></span><button type="button" className="icon-button" aria-label="Close guided tour" onClick={finishTour}><X size={17} /></button></div><div className="tour-eyebrow">{tourSteps[tourStep].eyebrow}</div><h2 id="tour-title">{tourSteps[tourStep].title}</h2><p>{tourSteps[tourStep].body}</p><div className="tour-tip"><Sparkles size={15} /><span>{tourSteps[tourStep].tip}</span></div><div className="tour-progress" aria-label={`Step ${tourStep + 1} of ${tourSteps.length}`}>{tourSteps.map((step, index) => <span key={step.eyebrow} className={index <= tourStep ? 'active' : ''} />)}</div><div className="tour-actions"><button type="button" className="button button-quiet" onClick={finishTour}>Skip tour</button><div>{tourStep > 0 && <button type="button" className="button button-quiet" onClick={() => setTourStep((step) => step - 1)}>Back</button>}<button type="button" className="button button-primary" onClick={() => tourStep === tourSteps.length - 1 ? finishTour() : setTourStep((step) => step + 1)}>{tourStep === tourSteps.length - 1 ? 'Start planning' : 'Next'} <ArrowRight size={15} /></button></div></div></section></div>}
+      {showSessionEditor && selected && <div className="modal-backdrop session-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSessionEditor(false); }}><section className="session-editor-modal" role="dialog" aria-modal="true" aria-label={`Teaching sessions and exams for ${selected.title}`}><div className="session-editor-modal-heading"><div><div className="eyebrow">COURSE DETAILS</div><h2>{selected.title}</h2><p>Edit sessions and exams without leaving your course card.</p></div><button type="button" className="icon-button" aria-label="Close session editor" onClick={() => setShowSessionEditor(false)}><X size={18} /></button></div><SchedulingPanel plan={plan} setPlan={setPlan} compactModuleId={selected.id} compact /></section></div>}
       {showQuickAdd && <QuickAddWizard currentPlan={plan} onClose={() => setShowQuickAdd(false)} onApply={(modules) => { setPlan((current) => ({ ...current, modules: [...current.modules, ...modules] })); setSelectedId(modules[0]?.id ?? selectedId); setShowQuickAdd(false); setToast(`Added ${modules.length} ${modules.length === 1 ? 'course' : 'courses'}`); }} />}
       {showImport && <ImportWizard currentPlan={plan} onClose={() => setShowImport(false)} onApply={(imported) => { setPlan(migrateStudyPlan(imported)); setSelectedId(imported.modules[0]?.id ?? null); setShowImport(false); setToast('Study plan imported'); }} />}
       {showAdd && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAdd(false); }}><form className="add-modal" onSubmit={addModule}>
