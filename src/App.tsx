@@ -175,8 +175,9 @@ function App() {
   const [dragHoverSemester, setDragHoverSemester] = useState<number | null | undefined>(undefined);
   const [newRecommendedSemester, setNewRecommendedSemester] = useState('');
 
-  function notify(message: string, type: 'success' | 'error' | 'info' = 'success') {
-    setToastType(type);
+  function notify(message: string, type?: 'success' | 'error' | 'info') {
+    const resolvedType = type ?? (/cannot|conflict|invalid|must be|set your starting|prerequisite|not allowed|failed|unavailable|choose .* first|could not be assigned/i.test(message) ? 'error' : 'success');
+    setToastType(resolvedType);
     setToastMessage(message);
   }
   const [newTitle, setNewTitle] = useState('');
@@ -236,7 +237,7 @@ function App() {
       if (!source || !target || !isModuleVisibleInPlan(plan, source.id) || !isModuleVisibleInPlan(plan, target.id)) continue;
       const sourceSemester = getPlannedSemester(source);
       const targetSemester = getPlannedSemester(target);
-      if (sourceSemester !== null && targetSemester !== null && sourceSemester >= targetSemester) {
+      if (source.status !== 'completed' && sourceSemester !== null && targetSemester !== null && sourceSemester >= targetSemester) {
         errors.push({ id: dependency.id, message: `${target.title} is planned in S${targetSemester}, but its required prerequisite ${source.title} is planned in S${sourceSemester}. The prerequisite must come first.`, moduleIds: [source.id, target.id] });
       }
     }
