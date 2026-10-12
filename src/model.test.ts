@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getProgress, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts, type StudyPlan } from './model';
+import { canSelectRequirementOption, getAvailableModules, getNextStepModules, getPlannedSemester, getRecommendedSemester, getProgress, getRequirementGroupSummary, getWeightedGradeAverage, isModuleCountedInPlan, isModuleVisibleInPlan, migrateStudyPlan, withPlannedSemester, getModulePlanningBlockReason, matchesSeasonFilter, getSemesterWorkloadEcts, type StudyModule, type StudyPlan } from './model';
 
 const plan: StudyPlan = {
   name: 'Test',
@@ -145,6 +145,19 @@ describe('elective selection and recommendations', () => {
   });
 });
 
+
+describe('editable recommended semester', () => {
+  it('uses the user recommendation while preserving the official source semester', () => {
+    const module: StudyModule = { ...plan.modules[0], recommendedSemester: 3, suggestedSemester: 1 };
+    expect(getRecommendedSemester(module)).toBe(1);
+    expect(module.recommendedSemester).toBe(3);
+  });
+
+  it('allows a user to explicitly clear an official recommendation for bulk planning', () => {
+    const module: StudyModule = { ...plan.modules[0], recommendedSemester: 3, suggestedSemester: null };
+    expect(getRecommendedSemester(module)).toBeNull();
+  });
+});
 
 describe('prior-study credit and seasonal semester planning', () => {
   it('counts prior-study courses in degree and completed ECTS, but not semester workload', () => {
