@@ -191,8 +191,11 @@ footer > span:last-child { letter-spacing: 0; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .optional-label { margin-left: 4px; color: #a0a79e; font-size: 8px; letter-spacing: .6px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; }
-.toast { position: fixed; z-index: 30; right: 22px; bottom: 22px; display: flex; align-items: center; gap: 9px; padding: 12px 14px; border: 1px solid #dbe7d9; border-radius: 10px; color: #42694a; background: #fff; box-shadow: 0 8px 25px #22352618; font-size: 11px; }
-.toast button { display: grid; place-items: center; margin-left: 8px; padding: 2px; border: 0; color: #8a9589; background: transparent; }
+.toast { position: fixed; z-index: 30; right: 22px; bottom: 22px; display: flex; align-items: flex-start; gap: 9px; max-width: min(460px, calc(100vw - 32px)); padding: 13px 15px; border: 1px solid #cbdcc9; border-radius: 12px; color: #285c38; background: #f2faf3; box-shadow: 0 8px 25px #22352618; font-size: 12px; line-height: 1.45; }
+.toast > span { flex: 1; }
+.toast.toast-error { color: #991b1b; border-color: #f0b4b4; background: #fff1f1; box-shadow: 0 8px 28px #7f1d1d20; }
+.toast.toast-info { color: #254d73; border-color: #b8d3eb; background: #eff7ff; }
+.toast button { display: grid; place-items: center; margin-left: 8px; padding: 2px; border: 0; color: currentColor; background: transparent; }
 
 @media (max-width: 1100px) {
   .workspace { width: calc(100% - 40px); }
@@ -688,3 +691,23 @@ button, select, input { touch-action: manipulation; }
   .semester-preview-actions { flex-direction:column-reverse; }
   .semester-preview-actions .button { width:100%; }
 }
+
+/* Strong, persistent feedback for invalid semester placements. */
+.kanban-column.drop-invalid { border-color: #dc2626; background: #fff5f5; box-shadow: inset 0 0 0 2px #dc26262b; }
+.kanban-column.drop-valid { border-color: #27834b; background: #f3fbf5; box-shadow: inset 0 0 0 2px #27834b22; }
+.drop-feedback { display: flex; align-items: flex-start; gap: 8px; margin: 10px 10px 0; padding: 10px; border-radius: 9px; font-size: 12px; line-height: 1.4; font-weight: 600; }
+.drop-feedback.error { color: #991b1b; border: 1px solid #f0b4b4; background: #fff0f0; }
+.drop-feedback.valid { color: #23643a; border: 1px solid #b5d9bf; background: #effaf2; }
+.kanban-card.has-planning-error { border-color: #dc7777; box-shadow: inset 3px 0 0 #dc2626; }
+.kanban-card-actions { display: inline-flex; align-items: center; gap: 6px; }
+.card-error-icon { color: #b91c1c; flex: 0 0 auto; }
+.official-semester-chip { border-radius: 5px; padding: 2px 5px; color: #536477; background: #edf1f5; font-size: 9px; font-weight: 650; white-space: nowrap; }
+.planning-errors { margin: 12px 0 16px; border: 1px solid #f0b4b4; border-radius: 12px; background: #fff7f7; color: #7f1d1d; overflow: hidden; }
+.planning-errors > summary { display: flex; align-items: center; gap: 9px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.planning-errors > summary::-webkit-details-marker { display: none; }
+.planning-errors > summary > span { display: flex; flex: 1; flex-direction: column; gap: 3px; }
+.planning-errors > summary small { font-size: 11px; line-height: 1.4; font-weight: 400; color: #914848; }
+.planning-errors:not([open]) .errors-chevron { transform: rotate(-90deg); }
+.planning-errors > ul { display: grid; gap: 7px; margin: 0; padding: 0 14px 14px; list-style: none; }
+.planning-errors > ul > li { display: flex; align-items: flex-start; gap: 8px; padding-top: 8px; border-top: 1px solid #f5dada; font-size: 12px; line-height: 1.45; }
+.planning-errors > ul > li svg { flex: 0 0 auto; margin-top: 2px; }
