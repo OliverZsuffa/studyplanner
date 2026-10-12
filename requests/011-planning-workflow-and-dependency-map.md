@@ -66,4 +66,4 @@ Make semester planning faster and more consistent, distinguish courses completed
 
 ## Status
 
-Implementation is in progress in [PR #11](https://github.com/OliverZsuffa/studyplanner/pull/11). The first GitHub Actions run passed the TypeScript build, unit tests, and Pages artifact upload. A follow-up consistency fix and documentation updates are being verified on the latest commit. Do not mark complete until the latest workflow succeeds, the PR is merged, and the post-merge Pages deployment and live site are checked.
+Implemented and merged in [PR #11](https://github.com/OliverZsuffa/studyplanner/pull/11), with the transparent bulk-add preview and per-course exclusion explanations completed in [PR #12](https://github.com/OliverZsuffa/studyplanner/pull/12). The main deployment workflow for PR #11 succeeded in [run #38227739671](https://github.com/OliverZsuffa/studyplanner/actions/runs/38227739671). The final follow-up commit is being verified by the post-merge build, tests, and Pages deployment workflow before final sign-off.
