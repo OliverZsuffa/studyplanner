@@ -22,6 +22,7 @@ export default function SchedulingPanel({ plan, setPlan, onSelectModule, compact
   const [depDraft, setDepDraft] = useState({ id: '', source: '', target: '', kind: 'required' as Dependency['kind'], note: '' });
   const [componentDrafts, setComponentDrafts] = useState<Record<string, CourseComponent>>({});
   const [examDrafts, setExamDrafts] = useState<Record<string, CourseExam>>({});
+  const [copyTargetId, setCopyTargetId] = useState('');
   const selectedModule = plan.modules.find(m => m.id === (compactModuleId ?? selectedModuleId)) ?? plan.modules[0];
   const semesters = Array.from({length: Math.max(8, ...plan.modules.map(m => getPlannedSemester(m) ?? 0), 1)}, (_,i) => i+1);
   const term = getTermForSemester(plan.startingTerm, semester);
@@ -37,6 +38,19 @@ export default function SchedulingPanel({ plan, setPlan, onSelectModule, compact
       if (conflict) { setNotice(`Impossible: this edit overlaps ${conflict.module.title}, ${conflict.component.name || conflict.component.type} (${conflict.slot.startTime}–${conflict.slot.endTime}). The change was not saved.`); return; }
     }
     setPlan(nextPlan);
+  };
+  const copyTeachingComponents = (source: StudyModule) => {
+    if (!copyTargetId || copyTargetId === source.id) return;
+    const components = (source.components ?? []).map(component => {
+      const idMap = new Map(component.alternatives.map(slot => [slot.id, uid()]));
+      return { ...component, id: uid(), alternatives: component.alternatives.map(slot => ({ ...slot, id: idMap.get(slot.id)! })), selectedAlternativeId: component.selectedAlternativeId ? idMap.get(component.selectedAlternativeId) : undefined };
+    });
+    if (components.length === 0) { setNotice('There are no teaching components to copy yet.'); return; }
+    const target = plan.modules.find(module => module.id === copyTargetId);
+    if (!target) return;
+    setPlan(current => ({ ...current, modules: current.modules.map(module => module.id === copyTargetId ? { ...module, components: [...(module.components ?? []), ...components] } : module) }));
+    setNotice(`Copied ${components.length} teaching component${components.length === 1 ? '' : 's'} to ${target.title}. Existing sessions were kept. Review dates, groups and locations for the target course.`);
+    setCopyTargetId('');
   };
   const addComponent = (module: StudyModule) => {
     const component = componentDrafts[module.id] ?? emptyComponent();
@@ -94,6 +108,7 @@ export default function SchedulingPanel({ plan, setPlan, onSelectModule, compact
         <label>Planned semester <select value={getPlannedSemester(selectedModule) ?? ''} onChange={e=>{const n=e.target.value ? Number(e.target.value) : null; const mapped=n===null?null:getTermForSemester(plan.startingTerm,n); if(n!==null && selectedModule.availability && selectedModule.availability!=='both' && !mapped){setNotice('Set the starting semester and year before assigning a winter-only or summer-only course.');return;} const problem=n===null?null:availabilityConflict(selectedModule,mapped); if(problem){setNotice(problem);return;} updateModule(selectedModule.id,{plannedSemester:n,semester:n ?? undefined});setNotice('Planned semester updated.');}}><option value="">Not planned</option>{semesters.map(s=><option value={s} key={s}>S{s} · {getTermLabel(getTermForSemester(plan.startingTerm,s))}</option>)}</select></label>
         {getPlannedSemester(selectedModule)!==null && availabilityConflict(selectedModule,getTermForSemester(plan.startingTerm,getPlannedSemester(selectedModule)!)) && <p className="schedule-error">{availabilityConflict(selectedModule,getTermForSemester(plan.startingTerm,getPlannedSemester(selectedModule)!))}</p>}
         <h4>Teaching components</h4><p className="schedule-muted">Each component repeats weekly only between the dates you enter. Every alternative has its own location and online availability.</p>
+        {(selectedModule.components ?? []).length > 0 && plan.modules.length > 1 && <div className="copy-sessions-row"><label>Reuse these sessions in another course<select value={copyTargetId} onChange={event => setCopyTargetId(event.target.value)}><option value="">Choose destination course…</option>{plan.modules.filter(module => module.id !== selectedModule.id).map(module => <option value={module.id} key={module.id}>{module.code} · {module.title}</option>)}</select></label><button type="button" className="schedule-secondary" disabled={!copyTargetId} onClick={() => copyTeachingComponents(selectedModule)}>Copy sessions</button><small>Appends copies with new IDs; it never replaces existing sessions. Review dates and details after copying.</small></div>}
         {(selectedModule.components ?? []).map(component=><article className="component-editor" key={component.id}><div className="component-title"><strong>{component.type}{component.name ? ' · '+component.name : ''}</strong><button type="button" className="schedule-danger" onClick={()=>updateModule(selectedModule.id,{components:(selectedModule.components??[]).filter(c=>c.id!==component.id)})}>Remove</button></div>
           <div className="schedule-fields"><label>Type<select value={component.type} onChange={e=>updateComponent(selectedModule,{...component,type:e.target.value as CourseComponentType})}>{componentTypes.map(t=><option key={t}>{t}</option>)}</select></label><label>Display name<input value={component.name} placeholder="e.g. Group A" onChange={e=>updateComponent(selectedModule,{...component,name:e.target.value})}/></label><label>Teaching starts<input type="date" value={component.startDate} onChange={e=>updateComponent(selectedModule,{...component,startDate:e.target.value})}/></label><label>Teaching ends<input type="date" value={component.endDate} onChange={e=>updateComponent(selectedModule,{...component,endDate:e.target.value})}/></label></div>
           {(!component.startDate || !component.endDate || component.endDate<component.startDate) && <p className="schedule-error">Enter a valid teaching date range before this component can be scheduled.</p>}
