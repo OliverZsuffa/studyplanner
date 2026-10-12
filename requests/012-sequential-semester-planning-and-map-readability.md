@@ -28,4 +28,4 @@ Replace the recommended-semester-only preview with a genuine step-by-step course
 - Build, tests, and deployment workflow pass.
 
 ## Status
-Implemented in [PR #13](https://github.com/OliverZsuffa/studyplanner/pull/13). The initial PR workflow passed type-check/build and unit tests. Final merge and Pages deployment verification are pending.
+Merged in [PR #13](https://github.com/OliverZsuffa/studyplanner/pull/13). Main workflow run [#38230621385](https://github.com/OliverZsuffa/studyplanner/actions/runs/38230621385) completed successfully, including TypeScript checking, production build, unit tests, Pages artifact upload, and GitHub Pages deployment. Independent visual inspection of the rendered page could not be performed because the browsing environment could not fetch the Pages URL.
