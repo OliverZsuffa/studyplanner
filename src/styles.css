@@ -658,6 +658,12 @@ button, select, input { touch-action: manipulation; }
 /* Request 011 follow-up: transparent course-addition preview and exclusion reasons. */
 .semester-preview,.planning-report { display:flex; flex-direction:column; gap:10px; margin-top:12px; padding:13px; border:1px solid #dfe7dd; border-radius:10px; background:#fff; }
 .semester-preview > div:first-child { display:flex; flex-direction:column; gap:5px; }
+.semester-preview-select-actions { display:flex; flex-wrap:wrap; gap:7px; }
+.planning-course-label { display:flex; align-items:flex-start; gap:9px; min-width:0; flex:1; cursor:pointer; }
+.planning-course-label input { margin:3px 0 0; flex:0 0 auto; accent-color:#36744a; }
+.planning-course-label > span { display:flex; min-width:0; flex-direction:column; gap:3px; }
+.semester-preview li > .planning-course-label + span { text-align:right; }
+@media (max-width:600px) { .semester-preview-select-actions { display:grid; grid-template-columns:1fr 1fr; } .semester-preview li > .planning-course-label + span { text-align:left; } }
 .semester-preview > div:first-child strong,.planning-report > strong { color:#334638; font-size:12px; }
 .semester-preview p { margin:0; color:#7d897d; font-size:10px; line-height:1.5; }
 .semester-preview ul,.planning-report ul { display:flex; flex-direction:column; gap:7px; margin:0; padding:0; list-style:none; }
